@@ -1,14 +1,13 @@
 import csv
 import io
-import json
-from flask import render_template, redirect, url_for, flash, request, Response
+from flask import render_template, redirect, url_for, flash, request, Response, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.admin import admin_bp
 from app.models import (
     db, User, Admin, Teacher, Parent, Student, Class, Subject, Report, Mark,
-    ClassTeacher, EducationLevel, Grade, GradeSubject, AcademicYear,
-    AcademicTerm, GradingScale, ReportTemplate, ECDAssessmentField
+    ClassTeacher, Grade, GradeSubject, AcademicYear,
+    AcademicTerm, GradingScale, ReportTemplate, SchoolSetting
 )
 from functools import wraps
 from app.services.pdf_service import invalidate_report_cache
@@ -33,40 +32,59 @@ def admin_required(f):
 def dashboard():
     total_students = Student.query.filter_by(is_active=True).count()
     total_teachers = Teacher.query.count()
-    total_parents = Parent.query.count()
-    total_reports = Report.query.count()
+    total_classes = Class.query.count()
+    total_subjects = Subject.query.count()
     pending_reports = Report.query.filter_by(status='submitted').count()
-    published_reports = Report.query.filter_by(status='published').count()
+    generated_reports = Report.query.filter(Report.status.in_(['approved', 'published'])).count()
 
-    ecd_count = Student.query.filter_by(is_active=True).join(Class, Student.class_id == Class.id).join(Grade, Class.grade_id == Grade.id).join(EducationLevel, Grade.education_level_id == EducationLevel.id).filter(EducationLevel.name == 'ECD').count()
-    primary_count = Student.query.filter_by(is_active=True).join(Class, Student.class_id == Class.id).join(Grade, Class.grade_id == Grade.id).join(EducationLevel, Grade.education_level_id == EducationLevel.id).filter(EducationLevel.name == 'Primary').count()
-    secondary_count = Student.query.filter_by(is_active=True).join(Class, Student.class_id == Class.id).join(Grade, Class.grade_id == Grade.id).join(EducationLevel, Grade.education_level_id == EducationLevel.id).filter(EducationLevel.name == 'Secondary').count()
+    recent_results = Report.query.filter(
+        Report.marks.any(), Report.status != 'draft'
+    ).order_by(Report.updated_at.desc()).limit(6).all()
 
-    recent_reports = Report.query.order_by(Report.created_at.desc()).limit(5).all()
-    education_levels = EducationLevel.query.filter_by(is_active=True).order_by(EducationLevel.display_order).all()
+    recent_activity = Report.query.order_by(Report.created_at.desc()).limit(6).all()
+
+    attention_reports = Report.query.filter(
+        Report.status.in_(['submitted', 'approved', 'published'])
+    ).order_by(Report.average.asc()).limit(40).all()
+
+    attention, seen = [], set()
+    for r in attention_reports:
+        if r.student_id not in seen:
+            seen.add(r.student_id)
+            attention.append((r.student, r.average))
+        if len(attention) >= 5:
+            break
+
+    current_year = AcademicYear.query.filter_by(is_current=True).first()
+    current_terms = []
+    active_term = None
+    if current_year:
+        current_terms = AcademicTerm.query.filter_by(
+            academic_year_id=current_year.id).order_by(AcademicTerm.display_order).all()
+        active_term = next((t for t in current_terms if t.is_active), None)
+
+    quick_stats = {
+        'draft': Report.query.filter_by(status='draft').count(),
+        'approved': Report.query.filter_by(status='approved').count(),
+    }
 
     return render_template('dashboard.html',
-                         total_students=total_students,
-                         total_teachers=total_teachers,
-                         total_parents=total_parents,
-                         total_reports=total_reports,
-                         pending_reports=pending_reports,
-                         published_reports=published_reports,
-                         ecd_count=ecd_count,
-                         primary_count=primary_count,
-                         secondary_count=secondary_count,
-                         recent_reports=recent_reports,
-                         education_levels=education_levels)
+                           total_students=total_students,
+                           total_teachers=total_teachers,
+                           total_classes=total_classes,
+                           total_subjects=total_subjects,
+                           pending_reports=pending_reports,
+                           generated_reports=generated_reports,
+                           recent_results=recent_results,
+                           recent_activity=recent_activity,
+                           attention=attention,
+                           current_year=current_year,
+                           current_terms=current_terms,
+                           active_term=active_term,
+                           quick_stats=quick_stats)
 
 
 # ==================== API ENDPOINTS ====================
-
-@admin_bp.route('/api/grades-by-level/<int:level_id>')
-@admin_required
-def api_grades_by_level(level_id):
-    grades = Grade.query.filter_by(education_level_id=level_id, is_active=True).order_by(Grade.display_order).all()
-    return jsonify([{'id': g.id, 'name': g.name} for g in grades])
-
 
 @admin_bp.route('/api/classes-by-grade/<int:grade_id>')
 @admin_required
@@ -83,10 +101,10 @@ def api_subjects_by_grade(grade_id):
     return jsonify([{'id': s.id, 'name': s.name, 'code': s.code, 'max_score': s.max_score} for s in subjects])
 
 
-@admin_bp.route('/api/grading-scale/<int:level_id>')
+@admin_bp.route('/api/grading-scale')
 @admin_required
-def api_grading_scale(level_id):
-    scales = GradingScale.query.filter_by(education_level_id=level_id, is_active=True).order_by(GradingScale.display_order).all()
+def api_grading_scale():
+    scales = GradingScale.query.filter_by(is_active=True).order_by(GradingScale.display_order).all()
     return jsonify([{
         'grade_letter': s.grade_letter,
         'min_score': s.min_score,
@@ -95,79 +113,25 @@ def api_grading_scale(level_id):
     } for s in scales])
 
 
-from flask import jsonify
-
-
-# ==================== EDUCATION LEVELS ====================
-
-@admin_bp.route('/education-levels')
-@admin_required
-def education_levels():
-    levels = EducationLevel.query.order_by(EducationLevel.display_order).all()
-    return render_template('education_levels.html', education_levels=levels)
-
-
-@admin_bp.route('/education-levels/add', methods=['POST'])
-@admin_required
-def add_education_level():
-    name = request.form.get('name')
-    description = request.form.get('description')
-    display_order = request.form.get('display_order', 0, type=int)
-
-    level = EducationLevel(name=name, description=description, display_order=display_order)
-    db.session.add(level)
-    db.session.commit()
-    flash('Education level added successfully!', 'success')
-    return redirect(url_for('admin.education_levels'))
-
-
-@admin_bp.route('/education-levels/edit/<int:id>', methods=['POST'])
-@admin_required
-def edit_education_level(id):
-    level = EducationLevel.query.get_or_404(id)
-    level.name = request.form.get('name')
-    level.description = request.form.get('description')
-    level.display_order = request.form.get('display_order', 0, type=int)
-    db.session.commit()
-    flash('Education level updated successfully!', 'success')
-    return redirect(url_for('admin.education_levels'))
-
-
-@admin_bp.route('/education-levels/delete/<int:id>', methods=['POST'])
-@admin_required
-def delete_education_level(id):
-    level = EducationLevel.query.get_or_404(id)
-    level.is_active = False
-    db.session.commit()
-    flash('Education level deleted successfully!', 'success')
-    return redirect(url_for('admin.education_levels'))
-
-
-# ==================== GRADES ====================
+# ==================== FORMS / LEVELS ====================
 
 @admin_bp.route('/grades')
 @admin_required
 def grades():
-    level_id = request.args.get('level_id', type=int)
-    levels = EducationLevel.query.filter_by(is_active=True).order_by(EducationLevel.display_order).all()
-    query = Grade.query
-    if level_id:
-        query = query.filter_by(education_level_id=level_id)
-    grades_list = query.order_by(Grade.display_order).all()
-    return render_template('grades.html', grades=grades_list, education_levels=levels, selected_level=level_id)
+    grades_list = Grade.query.filter_by(is_active=True).order_by(Grade.display_order).all()
+    return render_template('grades.html', grades=grades_list)
 
 
 @admin_bp.route('/grades/add', methods=['POST'])
 @admin_required
 def add_grade():
-    education_level_id = request.form.get('education_level_id', type=int)
     name = request.form.get('name')
     display_order = request.form.get('display_order', 0, type=int)
 
-    grade = Grade(education_level_id=education_level_id, name=name, display_order=display_order)
+    grade = Grade(name=name, display_order=display_order)
     db.session.add(grade)
     db.session.commit()
-    flash('Grade added successfully!', 'success')
+    flash('Form added successfully!', 'success')
     return redirect(url_for('admin.grades'))
 
 
@@ -175,11 +139,10 @@ def add_grade():
 @admin_required
 def edit_grade(id):
     grade = Grade.query.get_or_404(id)
-    grade.education_level_id = request.form.get('education_level_id', type=int)
     grade.name = request.form.get('name')
     grade.display_order = request.form.get('display_order', 0, type=int)
     db.session.commit()
-    flash('Grade updated successfully!', 'success')
+    flash('Form updated successfully!', 'success')
     return redirect(url_for('admin.grades'))
 
 
@@ -189,18 +152,16 @@ def delete_grade(id):
     grade = Grade.query.get_or_404(id)
     grade.is_active = False
     db.session.commit()
-    flash('Grade deleted successfully!', 'success')
+    flash('Form deleted successfully!', 'success')
     return redirect(url_for('admin.grades'))
 
 
-# ==================== GRADE SUBJECTS ====================
+# ==================== FORM SUBJECTS ====================
 
 @admin_bp.route('/grade-subjects')
 @admin_required
 def grade_subjects():
-    level_id = request.args.get('level_id', type=int)
     grade_id = request.args.get('grade_id', type=int)
-    levels = EducationLevel.query.filter_by(is_active=True).order_by(EducationLevel.display_order).all()
     grades_list = Grade.query.filter_by(is_active=True).order_by(Grade.display_order).all()
     all_subjects = Subject.query.order_by(Subject.name).all()
 
@@ -211,12 +172,10 @@ def grade_subjects():
         assigned_subject_ids = [s.id for s in selected_grade.subjects]
 
     return render_template('grade_subjects.html',
-                         education_levels=levels,
-                         grades=grades_list,
-                         all_subjects=all_subjects,
-                         selected_grade=selected_grade,
-                         assigned_subject_ids=assigned_subject_ids,
-                         selected_level=level_id)
+                           grades=grades_list,
+                           all_subjects=all_subjects,
+                           selected_grade=selected_grade,
+                           assigned_subject_ids=assigned_subject_ids)
 
 
 @admin_bp.route('/grade-subjects/update/<int:grade_id>', methods=['POST'])
@@ -231,11 +190,11 @@ def update_grade_subjects(grade_id):
         db.session.add(gs)
 
     db.session.commit()
-    flash('Grade subjects updated successfully!', 'success')
+    flash('Subjects for this form updated successfully!', 'success')
     return redirect(url_for('admin.grade_subjects', grade_id=grade_id))
 
 
-# ==================== ACADEMIC YEARS ====================
+# ==================== ACADEMIC YEARS & TERMS ====================
 
 @admin_bp.route('/academic-years')
 @admin_required
@@ -308,40 +267,44 @@ def delete_academic_term(id):
     return redirect(url_for('admin.academic_years'))
 
 
+@admin_bp.route('/academic-terms/toggle-active/<int:id>', methods=['POST'])
+@admin_required
+def toggle_academic_term(id):
+    term = AcademicTerm.query.get_or_404(id)
+    term.is_active = not term.is_active
+    if term.is_active:
+        AcademicTerm.query.filter(
+            AcademicTerm.id != term.id,
+            AcademicTerm.academic_year_id == term.academic_year_id
+        ).update({AcademicTerm.is_active: False})
+    db.session.commit()
+    flash(f'{term.name} is now the active term.', 'success')
+    return redirect(url_for('admin.academic_years'))
+
+
 # ==================== GRADING SCALES ====================
 
 @admin_bp.route('/grading-scales')
 @admin_required
 def grading_scales():
-    level_id = request.args.get('level_id', type=int)
-    levels = EducationLevel.query.filter_by(is_active=True).order_by(EducationLevel.display_order).all()
-    query = GradingScale.query
-    if level_id:
-        query = query.filter_by(education_level_id=level_id)
-    scales = query.order_by(GradingScale.education_level_id, GradingScale.display_order).all()
-    return render_template('grading_scales.html', grading_scales=scales, education_levels=levels, selected_level=level_id)
+    scales = GradingScale.query.order_by(GradingScale.display_order).all()
+    return render_template('grading_scales.html', grading_scales=scales)
 
 
 @admin_bp.route('/grading-scales/add', methods=['POST'])
 @admin_required
 def add_grading_scale():
-    education_level_id = request.form.get('education_level_id', type=int)
-    name = request.form.get('name')
-    min_score = request.form.get('min_score', type=float)
-    max_score = request.form.get('max_score', type=float)
-    grade_letter = request.form.get('grade_letter')
-    description = request.form.get('description')
-    display_order = request.form.get('display_order', 0, type=int)
-
     scale = GradingScale(
-        education_level_id=education_level_id, name=name,
-        min_score=min_score, max_score=max_score,
-        grade_letter=grade_letter, description=description,
-        display_order=display_order
+        name=request.form.get('name'),
+        min_score=request.form.get('min_score', type=float),
+        max_score=request.form.get('max_score', type=float),
+        grade_letter=request.form.get('grade_letter'),
+        description=request.form.get('description'),
+        display_order=request.form.get('display_order', 0, type=int)
     )
     db.session.add(scale)
     db.session.commit()
-    flash('Grading scale entry added successfully!', 'success')
+    flash('Grade band added successfully!', 'success')
     return redirect(url_for('admin.grading_scales'))
 
 
@@ -349,7 +312,6 @@ def add_grading_scale():
 @admin_required
 def edit_grading_scale(id):
     scale = GradingScale.query.get_or_404(id)
-    scale.education_level_id = request.form.get('education_level_id', type=int)
     scale.name = request.form.get('name')
     scale.min_score = request.form.get('min_score', type=float)
     scale.max_score = request.form.get('max_score', type=float)
@@ -357,7 +319,7 @@ def edit_grading_scale(id):
     scale.description = request.form.get('description')
     scale.display_order = request.form.get('display_order', 0, type=int)
     db.session.commit()
-    flash('Grading scale updated successfully!', 'success')
+    flash('Grade band updated successfully!', 'success')
     return redirect(url_for('admin.grading_scales'))
 
 
@@ -367,7 +329,7 @@ def delete_grading_scale(id):
     scale = GradingScale.query.get_or_404(id)
     db.session.delete(scale)
     db.session.commit()
-    flash('Grading scale entry deleted successfully!', 'success')
+    flash('Grade band deleted successfully!', 'success')
     return redirect(url_for('admin.grading_scales'))
 
 
@@ -377,21 +339,16 @@ def delete_grading_scale(id):
 @admin_required
 def report_templates():
     templates = ReportTemplate.query.all()
-    levels = EducationLevel.query.filter_by(is_active=True).all()
-    return render_template('report_templates.html', report_templates=templates, education_levels=levels)
+    return render_template('report_templates.html', report_templates=templates)
 
 
 @admin_bp.route('/report-templates/add', methods=['POST'])
 @admin_required
 def add_report_template():
-    education_level_id = request.form.get('education_level_id', type=int)
-    name = request.form.get('name')
-    template_type = request.form.get('template_type')
-    description = request.form.get('description')
-
     template = ReportTemplate(
-        education_level_id=education_level_id, name=name,
-        template_type=template_type, description=description
+        name=request.form.get('name'),
+        template_type='secondary',
+        description=request.form.get('description')
     )
     db.session.add(template)
     db.session.commit()
@@ -403,9 +360,7 @@ def add_report_template():
 @admin_required
 def edit_report_template(id):
     template = ReportTemplate.query.get_or_404(id)
-    template.education_level_id = request.form.get('education_level_id', type=int)
     template.name = request.form.get('name')
-    template.template_type = request.form.get('template_type')
     template.description = request.form.get('description')
     db.session.commit()
     flash('Report template updated successfully!', 'success')
@@ -422,51 +377,6 @@ def delete_report_template(id):
     return redirect(url_for('admin.report_templates'))
 
 
-# ==================== ECD ASSESSMENT FIELDS ====================
-
-@admin_bp.route('/ecd-fields')
-@admin_required
-def ecd_fields():
-    fields = ECDAssessmentField.query.order_by(ECDAssessmentField.display_order).all()
-    return render_template('ecd_fields.html', ecd_fields=fields)
-
-
-@admin_bp.route('/ecd-fields/add', methods=['POST'])
-@admin_required
-def add_ecd_field():
-    name = request.form.get('name')
-    description = request.form.get('description')
-    display_order = request.form.get('display_order', 0, type=int)
-
-    field = ECDAssessmentField(name=name, description=description, display_order=display_order)
-    db.session.add(field)
-    db.session.commit()
-    flash('ECD assessment field added successfully!', 'success')
-    return redirect(url_for('admin.ecd_fields'))
-
-
-@admin_bp.route('/ecd-fields/edit/<int:id>', methods=['POST'])
-@admin_required
-def edit_ecd_field(id):
-    field = ECDAssessmentField.query.get_or_404(id)
-    field.name = request.form.get('name')
-    field.description = request.form.get('description')
-    field.display_order = request.form.get('display_order', 0, type=int)
-    db.session.commit()
-    flash('ECD assessment field updated successfully!', 'success')
-    return redirect(url_for('admin.ecd_fields'))
-
-
-@admin_bp.route('/ecd-fields/delete/<int:id>', methods=['POST'])
-@admin_required
-def delete_ecd_field(id):
-    field = ECDAssessmentField.query.get_or_404(id)
-    field.is_active = False
-    db.session.commit()
-    flash('ECD assessment field deleted successfully!', 'success')
-    return redirect(url_for('admin.ecd_fields'))
-
-
 # ==================== STUDENT MANAGEMENT ====================
 
 @admin_bp.route('/students')
@@ -474,8 +384,8 @@ def delete_ecd_field(id):
 def students():
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '')
-    level_id = request.args.get('level_id', type=int)
     grade_id = request.args.get('grade_id', type=int)
+    class_id = request.args.get('class_id', type=int)
 
     query = Student.query.filter_by(is_active=True)
     if search:
@@ -486,21 +396,29 @@ def students():
                 Student.admission_number.ilike(f'%{search}%')
             )
         )
-    if level_id and grade_id:
-        query = query.join(Class, Student.class_id == Class.id).join(Grade, Class.grade_id == Grade.id).filter(Grade.education_level_id == level_id, Class.grade_id == grade_id)
-    elif level_id:
-        query = query.join(Class, Student.class_id == Class.id).join(Grade, Class.grade_id == Grade.id).filter(Grade.education_level_id == level_id)
+    if class_id:
+        query = query.filter(Student.class_id == class_id)
     elif grade_id:
         query = query.join(Class, Student.class_id == Class.id).filter(Class.grade_id == grade_id)
 
-    students_list = query.paginate(page=page, per_page=10)
-    levels = EducationLevel.query.filter_by(is_active=True).order_by(EducationLevel.display_order).all()
+    students_list = query.order_by(Student.admission_number).paginate(page=page, per_page=10)
     grades_list = Grade.query.filter_by(is_active=True).order_by(Grade.display_order).all()
     classes = Class.query.all()
     parents = Parent.query.all()
     return render_template('students.html', students=students_list, classes=classes,
-                         parents=parents, search=search, education_levels=levels,
-                         grades=grades_list, selected_level=level_id, selected_grade=grade_id)
+                           parents=parents, search=search,
+                           grades=grades_list, selected_grade=grade_id,
+                           selected_class=class_id)
+
+
+@admin_bp.route('/students/<int:id>')
+@admin_required
+def student_profile(id):
+    student = Student.query.get_or_404(id)
+    reports = Report.query.filter_by(student_id=id).order_by(
+        Report.academic_year.desc(), Report.academic_term).all()
+    parents = Parent.query.order_by(Parent.first_name).all()
+    return render_template('student_profile.html', student=student, reports=reports, parents_all=parents)
 
 
 @admin_bp.route('/students/add', methods=['POST'])
@@ -509,16 +427,15 @@ def add_student():
     first_name = request.form.get('first_name')
     last_name = request.form.get('last_name')
     admission_number = request.form.get('admission_number')
+
+    if Student.query.filter_by(admission_number=admission_number).first():
+        flash('A student with that admission number already exists.', 'danger')
+        return redirect(url_for('admin.students'))
+
     date_of_birth = request.form.get('date_of_birth')
     gender = request.form.get('gender')
     class_id = request.form.get('class_id')
     parent_id = request.form.get('parent_id')
-
-    education_level_id = None
-    if class_id:
-        class_obj = Class.query.get(int(class_id))
-        if class_obj and class_obj.grade:
-            education_level_id = class_obj.grade.education_level_id
 
     student = Student(
         first_name=first_name,
@@ -527,12 +444,11 @@ def add_student():
         date_of_birth=datetime.strptime(date_of_birth, '%Y-%m-%d').date() if date_of_birth else None,
         gender=gender,
         class_id=int(class_id) if class_id else None,
-        parent_id=int(parent_id) if parent_id else None,
-        education_level_id=education_level_id
+        parent_id=int(parent_id) if parent_id else None
     )
     db.session.add(student)
     db.session.commit()
-    flash('Student added successfully!', 'success')
+    flash('Student enrolled successfully!', 'success')
     return redirect(url_for('admin.students'))
 
 
@@ -546,15 +462,13 @@ def edit_student(id):
     student.gender = request.form.get('gender')
     student.class_id = int(request.form.get('class_id')) if request.form.get('class_id') else None
     student.parent_id = int(request.form.get('parent_id')) if request.form.get('parent_id') else None
-
-    if student.class_id:
-        class_obj = Class.query.get(student.class_id)
-        if class_obj and class_obj.grade:
-            student.education_level_id = class_obj.grade.education_level_id
+    dob = request.form.get('date_of_birth')
+    if dob:
+        student.date_of_birth = datetime.strptime(dob, '%Y-%m-%d').date()
 
     db.session.commit()
     flash('Student updated successfully!', 'success')
-    return redirect(url_for('admin.students'))
+    return redirect(request.referrer or url_for('admin.students'))
 
 
 @admin_bp.route('/students/delete/<int:id>', methods=['POST'])
@@ -563,22 +477,18 @@ def delete_student(id):
     student = Student.query.get_or_404(id)
     student.is_active = False
     db.session.commit()
-    flash('Student deleted successfully!', 'success')
+    flash('Student removed from the roll.', 'success')
     return redirect(url_for('admin.students'))
 
 
 @admin_bp.route('/students/upload', methods=['POST'])
 @admin_required
 def upload_students():
-    if 'file' not in request.files:
+    if 'file' not in request.files or request.files['file'].filename == '':
         flash('No file selected.', 'danger')
         return redirect(url_for('admin.students'))
 
     file = request.files['file']
-    if file.filename == '':
-        flash('No file selected.', 'danger')
-        return redirect(url_for('admin.students'))
-
     try:
         if file.filename.endswith('.csv'):
             content = file.read().decode('utf-8')
@@ -590,33 +500,26 @@ def upload_students():
             headers = [cell.value for cell in ws[1]]
             reader = []
             for row in ws.iter_rows(min_row=2, values_only=True):
-                row_dict = dict(zip(headers, row))
-                reader.append(row_dict)
+                reader.append(dict(zip(headers, row)))
         else:
             flash('Unsupported file format. Please use CSV or Excel.', 'danger')
             return redirect(url_for('admin.students'))
 
         count = 0
         for row in reader:
-            first_name = row.get('first_name', '').strip()
-            last_name = row.get('last_name', '').strip()
-            admission_number = row.get('admission_number', '').strip()
-            gender = row.get('gender', '').strip()
-            class_name = row.get('class', '').strip()
-            dob = row.get('date_of_birth', '').strip()
+            first_name = (row.get('first_name') or '').strip()
+            last_name = (row.get('last_name') or '').strip()
+            admission_number = (row.get('admission_number') or '').strip()
+            gender = (row.get('gender') or '').strip()
+            class_name = (row.get('class') or '').strip()
+            dob = (row.get('date_of_birth') or '').strip()
 
             if not first_name or not last_name or not admission_number:
                 continue
-
-            existing = Student.query.filter_by(admission_number=admission_number).first()
-            if existing:
+            if Student.query.filter_by(admission_number=admission_number).first():
                 continue
 
             class_obj = Class.query.filter_by(name=class_name).first() if class_name else None
-
-            education_level_id = None
-            if class_obj and class_obj.grade:
-                education_level_id = class_obj.grade.education_level_id
 
             student = Student(
                 first_name=first_name,
@@ -624,8 +527,7 @@ def upload_students():
                 admission_number=admission_number,
                 gender=gender if gender in ['Male', 'Female'] else None,
                 class_id=class_obj.id if class_obj else None,
-                date_of_birth=datetime.strptime(dob, '%Y-%m-%d').date() if dob else None,
-                education_level_id=education_level_id
+                date_of_birth=datetime.strptime(dob, '%Y-%m-%d').date() if dob else None
             )
             db.session.add(student)
             count += 1
@@ -646,7 +548,7 @@ def export_students():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['first_name', 'last_name', 'admission_number', 'gender', 'class', 'date_of_birth'])
+    writer.writerow(['first_name', 'last_name', 'admission_number', 'gender', 'form', 'class', 'date_of_birth'])
 
     for student in students:
         writer.writerow([
@@ -654,6 +556,7 @@ def export_students():
             student.last_name,
             student.admission_number,
             student.gender or '',
+            student.class_obj.grade.name if student.class_obj and student.class_obj.grade else '',
             student.class_obj.name if student.class_obj else '',
             student.date_of_birth.strftime('%Y-%m-%d') if student.date_of_birth else ''
         ])
@@ -662,7 +565,7 @@ def export_students():
     return Response(
         output.getvalue(),
         mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=students_export.csv'}
+        headers={'Content-Disposition': 'attachment; filename=nyatsime_students_export.csv'}
     )
 
 
@@ -671,7 +574,7 @@ def export_students():
 def export_reports():
     class_id = request.args.get('class_id', type=int)
     term = request.args.get('term', 'Term 1')
-    year = request.args.get('year', '2024/2025')
+    year = request.args.get('year', '2026')
 
     query = Report.query.filter_by(academic_term=term, academic_year=year)
     if class_id:
@@ -710,7 +613,7 @@ def export_reports():
     return Response(
         output.getvalue(),
         mimetype='text/csv',
-        headers={'Content-Disposition': f'attachment; filename=reports_export_{term}_{year}.csv'}
+        headers={'Content-Disposition': f'attachment; filename=nyatsime_reports_{term}_{year}.csv'}
     )
 
 
@@ -727,25 +630,26 @@ def teachers():
 @admin_bp.route('/teachers/add', methods=['POST'])
 @admin_required
 def add_teacher():
-    first_name = request.form.get('first_name')
-    last_name = request.form.get('last_name')
-    email = request.form.get('email')
-    phone = request.form.get('phone')
-    employee_id = request.form.get('employee_id')
     username = request.form.get('username')
-    password = request.form.get('password')
+    email = request.form.get('email')
+    if User.query.filter_by(username=username).first():
+        flash('Username already taken.', 'danger')
+        return redirect(url_for('admin.teachers'))
+    if User.query.filter_by(email=email).first():
+        flash('Email already in use.', 'danger')
+        return redirect(url_for('admin.teachers'))
 
     user = User(username=username, email=email, role='teacher')
-    user.set_password(password)
+    user.set_password(request.form.get('password'))
     db.session.add(user)
     db.session.flush()
 
     teacher = Teacher(
         user_id=user.id,
-        first_name=first_name,
-        last_name=last_name,
-        phone=phone,
-        employee_id=employee_id
+        first_name=request.form.get('first_name'),
+        last_name=request.form.get('last_name'),
+        phone=request.form.get('phone'),
+        employee_id=request.form.get('employee_id')
     )
     db.session.add(teacher)
     db.session.commit()
@@ -784,8 +688,48 @@ def delete_teacher(id):
     db.session.delete(teacher)
     db.session.delete(user)
     db.session.commit()
-    flash('Teacher deleted successfully!', 'success')
+    flash('Teacher removed successfully!', 'success')
     return redirect(url_for('admin.teachers'))
+
+
+# ==================== USERS & ROLES ====================
+
+@admin_bp.route('/users')
+@admin_required
+def users():
+    role = request.args.get('role', '')
+    query = User.query
+    if role:
+        query = query.filter_by(role=role)
+    users_list = query.order_by(User.role, User.username).all()
+    return render_template('users.html', users=users_list, selected_role=role)
+
+
+@admin_bp.route('/users/toggle/<int:id>', methods=['POST'])
+@admin_required
+def toggle_user(id):
+    user = User.query.get_or_404(id)
+    if user.id == current_user.id:
+        flash('You cannot deactivate your own account.', 'warning')
+        return redirect(url_for('admin.users'))
+    user.is_active = not user.is_active
+    db.session.commit()
+    flash(f"Account '{user.username}' {'activated' if user.is_active else 'deactivated'}.", 'success')
+    return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/users/reset-password/<int:id>', methods=['POST'])
+@admin_required
+def reset_user_password(id):
+    user = User.query.get_or_404(id)
+    password = request.form.get('password')
+    if password and len(password) >= 6:
+        user.set_password(password)
+        db.session.commit()
+        flash(f"Password reset for '{user.username}'.", 'success')
+    else:
+        flash('Password must be at least 6 characters.', 'danger')
+    return redirect(url_for('admin.users'))
 
 
 # ==================== PARENT MANAGEMENT ====================
@@ -802,37 +746,37 @@ def parents():
 @admin_bp.route('/parents/add', methods=['POST'])
 @admin_required
 def add_parent():
-    first_name = request.form.get('first_name')
-    last_name = request.form.get('last_name')
-    email = request.form.get('email')
-    phone = request.form.get('phone')
-    address = request.form.get('address')
     username = request.form.get('username')
-    password = request.form.get('password')
-    child_ids = request.form.getlist('child_ids')
+    email = request.form.get('email')
+    if User.query.filter_by(username=username).first():
+        flash('Username already taken.', 'danger')
+        return redirect(url_for('admin.parents'))
+    if User.query.filter_by(email=email).first():
+        flash('Email already in use.', 'danger')
+        return redirect(url_for('admin.parents'))
 
     user = User(username=username, email=email, role='parent')
-    user.set_password(password)
+    user.set_password(request.form.get('password'))
     db.session.add(user)
     db.session.flush()
 
     parent = Parent(
         user_id=user.id,
-        first_name=first_name,
-        last_name=last_name,
-        phone=phone,
-        address=address
+        first_name=request.form.get('first_name'),
+        last_name=request.form.get('last_name'),
+        phone=request.form.get('phone'),
+        address=request.form.get('address')
     )
     db.session.add(parent)
     db.session.flush()
 
-    for child_id in child_ids:
+    for child_id in request.form.getlist('child_ids'):
         student = Student.query.get(int(child_id))
         if student:
             student.parent_id = parent.id
 
     db.session.commit()
-    flash('Parent added successfully!', 'success')
+    flash('Parent/guardian added successfully!', 'success')
     return redirect(url_for('admin.parents'))
 
 
@@ -865,7 +809,7 @@ def edit_parent(id):
             student.parent_id = parent.id
 
     db.session.commit()
-    flash('Parent updated successfully!', 'success')
+    flash('Parent/guardian updated successfully!', 'success')
     return redirect(url_for('admin.parents'))
 
 
@@ -877,7 +821,7 @@ def delete_parent(id):
     db.session.delete(parent)
     db.session.delete(user)
     db.session.commit()
-    flash('Parent deleted successfully!', 'success')
+    flash('Parent/guardian removed successfully!', 'success')
     return redirect(url_for('admin.parents'))
 
 
@@ -886,22 +830,17 @@ def delete_parent(id):
 @admin_bp.route('/classes')
 @admin_required
 def classes():
-    level_id = request.args.get('level_id', type=int)
     grade_id = request.args.get('grade_id', type=int)
-    levels = EducationLevel.query.filter_by(is_active=True).order_by(EducationLevel.display_order).all()
     grades_list = Grade.query.filter_by(is_active=True).order_by(Grade.display_order).all()
 
     query = Class.query
     if grade_id:
         query = query.filter_by(grade_id=grade_id)
-    elif level_id:
-        query = query.join(Grade, Class.grade_id == Grade.id).filter(Grade.education_level_id == level_id)
-    classes_list = query.all()
+    classes_list = query.order_by(Class.name).all()
 
     teachers = Teacher.query.all()
     return render_template('classes.html', classes=classes_list, teachers=teachers,
-                         education_levels=levels, grades=grades_list,
-                         selected_level=level_id, selected_grade=grade_id)
+                           grades=grades_list, selected_grade=grade_id)
 
 
 @admin_bp.route('/classes/add', methods=['POST'])
@@ -913,7 +852,7 @@ def add_class():
     teacher_ids = request.form.getlist('teacher_ids')
     class_teacher_id = request.form.get('class_teacher_id', type=int)
 
-    class_obj = Class(name=name, section=section, grade_id=grade_id, class_teacher_id=class_teacher_id)
+    class_obj = Class(name=name, section=section, grade_id=grade_id, class_teacher_id=class_teacher_id or None)
     db.session.add(class_obj)
     db.session.flush()
 
@@ -923,7 +862,7 @@ def add_class():
             class_obj.teachers.append(teacher)
 
     db.session.commit()
-    flash('Class added successfully!', 'success')
+    flash('Class/stream created successfully!', 'success')
     return redirect(url_for('admin.classes'))
 
 
@@ -934,7 +873,8 @@ def edit_class(id):
     class_obj.name = request.form.get('name')
     class_obj.section = request.form.get('section')
     class_obj.grade_id = request.form.get('grade_id', type=int)
-    class_obj.class_teacher_id = request.form.get('class_teacher_id', type=int)
+    ctid = request.form.get('class_teacher_id', type=int)
+    class_obj.class_teacher_id = ctid or None
     teacher_ids = request.form.getlist('teacher_ids')
 
     class_obj.teachers.clear()
@@ -944,7 +884,7 @@ def edit_class(id):
             class_obj.teachers.append(teacher)
 
     db.session.commit()
-    flash('Class updated successfully!', 'success')
+    flash('Class/stream updated successfully!', 'success')
     return redirect(url_for('admin.classes'))
 
 
@@ -952,9 +892,12 @@ def edit_class(id):
 @admin_required
 def delete_class(id):
     class_obj = Class.query.get_or_404(id)
+    if class_obj.students:
+        flash('Cannot delete a class that still has students assigned.', 'danger')
+        return redirect(url_for('admin.classes'))
     db.session.delete(class_obj)
     db.session.commit()
-    flash('Class deleted successfully!', 'success')
+    flash('Class/stream deleted successfully!', 'success')
     return redirect(url_for('admin.classes'))
 
 
@@ -963,7 +906,7 @@ def delete_class(id):
 @admin_bp.route('/subjects')
 @admin_required
 def subjects():
-    subjects = Subject.query.all()
+    subjects = Subject.query.order_by(Subject.name).all()
     grades_list = Grade.query.filter_by(is_active=True).order_by(Grade.display_order).all()
     return render_template('subjects.html', subjects=subjects, grades=grades_list)
 
@@ -971,11 +914,11 @@ def subjects():
 @admin_bp.route('/subjects/add', methods=['POST'])
 @admin_required
 def add_subject():
-    name = request.form.get('name')
-    code = request.form.get('code')
-    max_score = request.form.get('max_score', 100, type=int)
-
-    subject = Subject(name=name, code=code, max_score=max_score)
+    subject = Subject(
+        name=request.form.get('name'),
+        code=request.form.get('code'),
+        max_score=request.form.get('max_score', 100, type=int)
+    )
     db.session.add(subject)
     db.session.commit()
     flash('Subject added successfully!', 'success')
@@ -1011,25 +954,23 @@ def delete_subject(id):
 def reports():
     page = request.args.get('page', 1, type=int)
     status = request.args.get('status', '')
-    level_id = request.args.get('level_id', type=int)
     grade_id = request.args.get('grade_id', type=int)
+    class_id = request.args.get('class_id', type=int)
 
     query = Report.query
     if status:
         query = query.filter_by(status=status)
-    if level_id and grade_id:
-        query = query.join(Class, Report.class_id == Class.id).join(Grade, Class.grade_id == Grade.id).filter(Grade.education_level_id == level_id, Class.grade_id == grade_id)
-    elif level_id:
-        query = query.join(Class, Report.class_id == Class.id).join(Grade, Class.grade_id == Grade.id).filter(Grade.education_level_id == level_id)
+    if class_id:
+        query = query.filter(Report.class_id == class_id)
     elif grade_id:
         query = query.join(Class, Report.class_id == Class.id).filter(Class.grade_id == grade_id)
 
-    reports_list = query.order_by(Report.created_at.desc()).paginate(page=page, per_page=10)
-    levels = EducationLevel.query.filter_by(is_active=True).order_by(EducationLevel.display_order).all()
+    reports_list = query.order_by(Report.updated_at.desc()).paginate(page=page, per_page=12)
     grades_list = Grade.query.filter_by(is_active=True).order_by(Grade.display_order).all()
+    classes = Class.query.order_by(Class.name).all()
     return render_template('reports.html', reports=reports_list, current_status=status,
-                         education_levels=levels, grades=grades_list,
-                         selected_level=level_id, selected_grade=grade_id)
+                           grades=grades_list, classes=classes,
+                           selected_grade=grade_id, selected_class=class_id)
 
 
 @admin_bp.route('/reports/approve/<int:id>', methods=['POST'])
@@ -1044,7 +985,7 @@ def approve_report(id):
     db.session.commit()
     invalidate_report_cache(report.id)
     flash('Report approved successfully!', 'success')
-    return redirect(url_for('admin.reports'))
+    return redirect(request.referrer or url_for('admin.reports'))
 
 
 @admin_bp.route('/reports/publish/<int:id>', methods=['POST'])
@@ -1055,5 +996,30 @@ def publish_report(id):
     report.published_at = datetime.utcnow()
     db.session.commit()
     invalidate_report_cache(report.id)
-    flash('Report published successfully!', 'success')
-    return redirect(url_for('admin.reports'))
+    flash('Report published - now visible to parents.', 'success')
+    return redirect(request.referrer or url_for('admin.reports'))
+
+
+# ==================== SCHOOL SETTINGS ====================
+
+@admin_bp.route('/settings', methods=['GET', 'POST'])
+@admin_required
+def settings():
+    setting_keys = ['school_name', 'school_motto', 'school_address', 'school_phone', 'school_email']
+    if request.method == 'POST':
+        for key in setting_keys:
+            SchoolSetting.set(key, request.form.get(key, '').strip())
+        db.session.commit()
+        invalidate_all_caches()
+        flash('School settings saved.', 'success')
+        return redirect(url_for('admin.settings'))
+
+    values = {key: SchoolSetting.get(key) for key in setting_keys}
+    return render_template('settings.html', values=values)
+
+
+def invalidate_all_caches():
+    from app.services.pdf_service import invalidate_report_cache
+    ids = [r[0] for r in Report.query.with_entities(Report.id).all()]
+    for rid in ids:
+        invalidate_report_cache(rid)

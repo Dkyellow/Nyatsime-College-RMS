@@ -15,14 +15,13 @@ def login():
         return redirect(get_dashboard_url(current_user.role))
 
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        remember = request.form.get('remember', False)
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
 
         user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password) and user.is_active:
-            login_user(user, remember=bool(remember))
+            login_user(user, remember=bool(request.form.get('remember')))
             next_page = request.args.get('next')
             flash('Login successful!', 'success')
             return redirect(next_page or get_dashboard_url(user.role))
@@ -45,6 +44,6 @@ def get_dashboard_url(role):
         return url_for('admin.dashboard')
     elif role == 'teacher':
         return url_for('teacher.dashboard')
-    elif role == 'parent':
-        return url_for('parent.dashboard')
+    elif role == 'student':
+        return url_for('student.dashboard')
     return url_for('auth.login')

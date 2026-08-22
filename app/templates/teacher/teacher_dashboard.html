@@ -1,53 +1,82 @@
 {% extends "base.html" %}
-{% block title %}Teacher Dashboard - School Report System{% endblock %}
+{% block title %}Teacher Dashboard - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}
+<span class="school-chip"><img src="{{ url_for('static', filename='img/nyatsime-crest.svg') }}" alt=""> Teacher Dashboard</span>
+{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0">Teacher Dashboard</h4>
-    <span class="text-muted">Welcome, {{ teacher.first_name }} {{ teacher.last_name }}</span>
-</div>
-<div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="dashboard-card">
-            <div class="d-flex justify-content-between align-items-start">
-                <div><div class="value">{{ classes|length }}</div><div class="label">Assigned Classes</div></div>
-                <div class="icon blue"><i class="bi bi-door-open"></i></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="dashboard-card">
-            <div class="d-flex justify-content-between align-items-start">
-                <div><div class="value">{{ total_students }}</div><div class="label">Total Students</div></div>
-                <div class="icon green"><i class="bi bi-people"></i></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="dashboard-card">
-            <div class="d-flex justify-content-between align-items-start">
-                <div><div class="value">{{ drafts }}</div><div class="label">Draft Reports</div></div>
-                <div class="icon orange"><i class="bi bi-file-earmark-text"></i></div>
-            </div>
-        </div>
+<div class="page-head">
+    <div>
+        <h4 class="page-title">Welcome, {{ teacher.first_name if teacher else current_user.username }}</h4>
+        <p class="page-sub">
+            {% if active_term %}<span class="term-pill"><i class="bi bi-calendar3-week me-1"></i>{{ current_year.name }} &bull; {{ active_term.name }}</span>{% endif %}
+            Your classes and marks entry at a glance.
+        </p>
     </div>
 </div>
-<div class="card">
-    <div class="card-header"><i class="bi bi-door-open me-2"></i>My Assigned Classes</div>
-    <div class="card-body">
-        <div class="row g-4">
-            {% for class in classes %}
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ class.name }}</h5>
-                        {% if class.grade %}
-                        <p class="mb-1"><span class="badge bg-info">{{ class.grade.education_level.name }}</span> <span class="badge bg-secondary">{{ class.grade.name }}</span></p>
-                        {% endif %}
-                        <p class="text-muted mb-3"><i class="bi bi-people me-2"></i>{{ class.students|length }} Students</p>
-                        <a href="{{ url_for('teacher.view_class', class_id=class.id) }}" class="btn btn-primary btn-sm"><i class="bi bi-eye me-2"></i>View Class</a>
-                    </div>
+
+<div class="stat-grid four">
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="bi bi-mortarboard"></i></div>
+        <div><div class="stat-value">{{ total_students }}</div><div class="stat-label">My Students</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon slate"><i class="bi bi-collection"></i></div>
+        <div><div class="stat-value">{{ classes|length }}</div><div class="stat-label">My Classes</div></div>
+    </div>
+    <div class="stat-card accent-gold">
+        <div class="stat-icon gold"><i class="bi bi-pencil-square"></i></div>
+        <div><div class="stat-value">{{ drafts + submitted }}</div><div class="stat-label">Reports To Finish</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-send-check"></i></div>
+        <div><div class="stat-value">{{ published }}</div><div class="stat-label">Published Reports</div></div>
+    </div>
+</div>
+
+<div class="row g-3 g-lg-4 mt-0">
+    <div class="col-xl-7">
+        <div class="card-panel h-100">
+            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-collection me-2"></i>My Classes</h6></div>
+            {% for c in classes %}
+            <a href="{{ url_for('teacher.view_class', class_id=c.id) }}" class="class-row">
+                <span class="avatar-initials">{{ (c.grade.name[:1] ~ (c.section or 'A')[:1])|upper if c.grade else c.name[:2]|upper }}</span>
+                <div class="flex-grow-1">
+                    <strong>{{ c.name }}</strong>
+                    <small class="d-block text-muted">{{ c.students|length }} students</small>
                 </div>
+                <i class="bi bi-chevron-right text-muted"></i>
+            </a>
+            {% else %}
+            <p class="text-muted">No classes assigned to you yet. Contact the administrator.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-xl-5">
+        <div class="card-panel mb-3">
+            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-lightning-charge me-2"></i>Quick Marks Entry</h6></div>
+            <p class="text-muted small mb-3">Enter marks for a whole class in one screen.</p>
+            {% for c in classes %}
+            <a href="{{ url_for('teacher.view_class', class_id=c.id) }}" class="btn btn-outline w-100 justify-content-between d-flex align-items-center mb-2">
+                {{ c.name }} <i class="bi bi-arrow-right"></i>
+            </a>
+            {% endfor %}
+        </div>
+
+        <div class="card-panel">
+            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-clock-history me-2"></i>Recent Results</h6></div>
+            {% for report in recent_results %}
+            <div class="d-flex align-items-center py-2 border-bottom">
+                <span class="avatar-initials sm me-2">{{ (report.student.first_name[0] ~ report.student.last_name[0])|upper }}</span>
+                <div class="flex-grow-1 small">
+                    <strong>{{ report.student.first_name }} {{ report.student.last_name }}</strong>
+                    <span class="text-muted">&bull; {{ report.academic_term }}</span>
+                </div>
+                <strong class="small">{{ "%.1f"|format(report.average) }}%</strong>
+                <span class="status-badge {{ report.status }} ms-2">{{ report.status|title }}</span>
             </div>
+            {% else %}
+            <p class="text-muted mb-0">No results entered yet.</p>
             {% endfor %}
         </div>
     </div>

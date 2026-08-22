@@ -8,9 +8,9 @@ class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), nullable=False)
+    role = db.Column(db.String(20), nullable=False)  # admin | teacher | student
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -50,47 +50,49 @@ class Teacher(db.Model):
     classes = db.relationship('Class', secondary='class_teachers', back_populates='teachers')
 
 
-class Parent(db.Model):
-    __tablename__ = 'parents'
+class Student(db.Model):
+    __tablename__ = 'students'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
-    phone = db.Column(db.String(20))
-    address = db.Column(db.Text)
-
-    user = db.relationship('User', backref=db.backref('parent_profile', uselist=False))
-    children = db.relationship('Student', back_populates='parent')
-
-
-class EducationLevel(db.Model):
-    __tablename__ = 'education_levels'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False, unique=True)
-    description = db.Column(db.Text)
-    display_order = db.Column(db.Integer, default=0)
+    admission_number = db.Column(db.String(20), unique=True, nullable=False)
+    date_of_birth = db.Column(db.Date)
+    gender = db.Column(db.String(10))
+    class_id = db.Column(db.Integer, db.ForeignKey('classes.id'))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    grades = db.relationship('Grade', back_populates='education_level', order_by='Grade.display_order')
-    grading_scales = db.relationship('GradingScale', back_populates='education_level')
-    report_templates = db.relationship('ReportTemplate', back_populates='education_level')
+    user = db.relationship('User', backref=db.backref('student_profile', uselist=False))
+    class_obj = db.relationship('Class', back_populates='students')
+    reports = db.relationship('Report', back_populates='student')
+
+    @property
+    def full_name(self):
+        return f'{self.first_name} {self.last_name}'
 
 
 class Grade(db.Model):
+    """Fixed secondary school forms (Form 1 ... Upper 6).
+
+    Reference data maintained by the application - there is no CRUD interface.
+    """
     __tablename__ = 'grades'
     id = db.Column(db.Integer, primary_key=True)
-    education_level_id = db.Column(db.Integer, db.ForeignKey('education_levels.id'), nullable=False)
     name = db.Column(db.String(50), nullable=False)
     display_order = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    education_level = db.relationship('EducationLevel', back_populates='grades')
     classes = db.relationship('Class', back_populates='grade')
     grade_subjects = db.relationship('GradeSubject', back_populates='grade', cascade='all, delete-orphan', viewonly=False)
 
     subjects = db.relationship('Subject', secondary='grade_subjects', back_populates='grades', viewonly=True)
+
+    @property
+    def level_group(self):
+        from app.academic import level_group
+        return level_group(self.name)
 
 
 class Class(db.Model):
@@ -110,39 +112,11 @@ class Class(db.Model):
     def grade_level(self):
         return self.grade.name if self.grade else None
 
-    @property
-    def education_level_name(self):
-        return self.grade.education_level.name if self.grade and self.grade.education_level else None
-
-    @property
-    def education_level_id(self):
-        return self.grade.education_level_id if self.grade else None
-
 
 class ClassTeacher(db.Model):
     __tablename__ = 'class_teachers'
     class_id = db.Column(db.Integer, db.ForeignKey('classes.id'), primary_key=True)
     teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), primary_key=True)
-
-
-class Student(db.Model):
-    __tablename__ = 'students'
-    id = db.Column(db.Integer, primary_key=True)
-    first_name = db.Column(db.String(50), nullable=False)
-    last_name = db.Column(db.String(50), nullable=False)
-    admission_number = db.Column(db.String(20), unique=True, nullable=False)
-    date_of_birth = db.Column(db.Date)
-    gender = db.Column(db.String(10))
-    class_id = db.Column(db.Integer, db.ForeignKey('classes.id'))
-    parent_id = db.Column(db.Integer, db.ForeignKey('parents.id'))
-    education_level_id = db.Column(db.Integer, db.ForeignKey('education_levels.id'))
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    class_obj = db.relationship('Class', back_populates='students')
-    parent = db.relationship('Parent', back_populates='children')
-    education_level = db.relationship('EducationLevel')
-    reports = db.relationship('Report', back_populates='student')
 
 
 class Subject(db.Model):
@@ -167,76 +141,40 @@ class GradeSubject(db.Model):
 class AcademicYear(db.Model):
     __tablename__ = 'academic_years'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20), nullable=False, unique=True)
-    is_current = db.Column(db.Boolean, default=False)
+    name = db.Column(db.String(20), nullable=False, unique=True)  # single year e.g. "2026"
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    terms = db.relationship('AcademicTerm', back_populates='academic_year', order_by='AcademicTerm.display_order')
+    terms = db.relationship('AcademicTerm', back_populates='academic_year',
+                            order_by='AcademicTerm.display_order', cascade='all, delete-orphan')
 
 
 class AcademicTerm(db.Model):
+    """The three fixed terms with editable start/end dates per academic year."""
     __tablename__ = 'academic_terms'
     id = db.Column(db.Integer, primary_key=True)
     academic_year_id = db.Column(db.Integer, db.ForeignKey('academic_years.id'), nullable=False)
-    name = db.Column(db.String(20), nullable=False)
+    name = db.Column(db.String(20), nullable=False)   # fixed: Term 1 / Term 2 / Term 3
     display_order = db.Column(db.Integer, default=0)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
 
     academic_year = db.relationship('AcademicYear', back_populates='terms')
 
-
-class GradingScale(db.Model):
-    __tablename__ = 'grading_scales'
-    id = db.Column(db.Integer, primary_key=True)
-    education_level_id = db.Column(db.Integer, db.ForeignKey('education_levels.id'), nullable=False)
-    name = db.Column(db.String(50), nullable=False)
-    min_score = db.Column(db.Float, nullable=False)
-    max_score = db.Column(db.Float, nullable=False)
-    grade_letter = db.Column(db.String(5), nullable=False)
-    description = db.Column(db.String(50))
-    display_order = db.Column(db.Integer, default=0)
-    is_active = db.Column(db.Boolean, default=True)
-
-    education_level = db.relationship('EducationLevel', back_populates='grading_scales')
+    @property
+    def label(self):
+        return f'{self.name} {self.academic_year.name}' if self.academic_year else self.name
 
 
 class ReportTemplate(db.Model):
     __tablename__ = 'report_templates'
     id = db.Column(db.Integer, primary_key=True)
-    education_level_id = db.Column(db.Integer, db.ForeignKey('education_levels.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     template_type = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text)
     is_default = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    education_level = db.relationship('EducationLevel', back_populates='report_templates')
-
-
-class ECDAssessmentField(db.Model):
-    __tablename__ = 'ecd_assessment_fields'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    display_order = db.Column(db.Integer, default=0)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class ECDAssessmentMark(db.Model):
-    __tablename__ = 'ecd_assessment_marks'
-    id = db.Column(db.Integer, primary_key=True)
-    report_id = db.Column(db.Integer, db.ForeignKey('reports.id'), nullable=False)
-    assessment_field_id = db.Column(db.Integer, db.ForeignKey('ecd_assessment_fields.id'), nullable=False)
-    score = db.Column(db.Float, default=0)
-    grade = db.Column(db.String(5))
-    comment = db.Column(db.Text)
-
-    report = db.relationship('Report', back_populates='ecd_marks')
-    assessment_field = db.relationship('ECDAssessmentField')
 
 
 class Report(db.Model):
@@ -246,16 +184,14 @@ class Report(db.Model):
         db.Index('idx_report_class_status', 'class_id', 'status'),
         db.Index('idx_report_class_term_year', 'class_id', 'academic_term', 'academic_year'),
         db.Index('idx_report_status', 'status'),
-        db.Index('idx_report_education_level', 'education_level_id'),
     )
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
     class_id = db.Column(db.Integer, db.ForeignKey('classes.id'), nullable=False)
     academic_term = db.Column(db.String(20), nullable=False)
-    academic_year = db.Column(db.String(10), nullable=False)
+    academic_year = db.Column(db.String(10), nullable=False)  # single year e.g. "2026"
     academic_year_id = db.Column(db.Integer, db.ForeignKey('academic_years.id'))
     academic_term_id = db.Column(db.Integer, db.ForeignKey('academic_terms.id'))
-    education_level_id = db.Column(db.Integer, db.ForeignKey('education_levels.id'))
     total_marks = db.Column(db.Float, default=0)
     average = db.Column(db.Float, default=0)
     overall_grade = db.Column(db.String(5))
@@ -272,11 +208,13 @@ class Report(db.Model):
 
     student = db.relationship('Student', back_populates='reports')
     class_obj = db.relationship('Class')
-    education_level = db.relationship('EducationLevel')
     academic_year_rel = db.relationship('AcademicYear', foreign_keys=[academic_year_id])
     academic_term_rel = db.relationship('AcademicTerm', foreign_keys=[academic_term_id])
     marks = db.relationship('Mark', back_populates='report', cascade='all, delete-orphan')
-    ecd_marks = db.relationship('ECDAssessmentMark', back_populates='report', cascade='all, delete-orphan')
+
+    @property
+    def period_label(self):
+        return f'{self.academic_term} {self.academic_year}'
 
 
 class Mark(db.Model):
@@ -288,8 +226,33 @@ class Mark(db.Model):
     report_id = db.Column(db.Integer, db.ForeignKey('reports.id'), nullable=False)
     subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
     score = db.Column(db.Float, default=0)
-    grade = db.Column(db.String(5))
+    grade = db.Column(db.String(5))  # calculated automatically on save
     max_score = db.Column(db.Integer, default=100)
 
     report = db.relationship('Report', back_populates='marks')
     subject = db.relationship('Subject')
+
+    @property
+    def percent(self):
+        if not self.max_score:
+            return 0
+        return (self.score or 0) / self.max_score * 100
+
+
+class SchoolSetting(db.Model):
+    __tablename__ = 'school_settings'
+    key = db.Column(db.String(50), primary_key=True)
+    value = db.Column(db.Text)
+
+    @classmethod
+    def get(cls, key, default=''):
+        row = db.session.get(cls, key)
+        return row.value if row and row.value is not None else default
+
+    @classmethod
+    def set(cls, key, value):
+        row = db.session.get(cls, key)
+        if row:
+            row.value = value
+        else:
+            db.session.add(cls(key=key, value=value))

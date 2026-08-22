@@ -1,16 +1,32 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Hillside Academy{% endblock %}
+{% block title %}Login - {{ SCHOOL_NAME }}{% endblock %}
 
 {% block auth_content %}
-<div class="login-container">
-    <div class="login-card">
-        <div class="login-header">
-            <i class="bi bi-mortarboard-fill"></i>
-            <h4>Hillside Academy</h4>
-            <p class="mb-0">Education For Self Reliance</p>
+<div class="login-shell">
+    <div class="login-hero d-none d-lg-flex">
+        <div class="login-hero-inner">
+            <img src="{{ url_for('static', filename='img/nyatsime-crest.svg') }}" alt="{{ SCHOOL_NAME }} Crest" class="hero-crest">
+            <h1 class="hero-title">{{ SCHOOL_NAME }}</h1>
+            <p class="hero-sub">Knowledge &bull; Integrity &bull; Excellence</p>
+            <div class="hero-divider"></div>
+            <p class="hero-text">
+                A modern academic records and report management platform built for
+                Zimbabwean secondary education &mdash; from Form 1 through Upper 6.
+            </p>
         </div>
-        <div class="login-body">
+    </div>
+
+    <div class="login-panel">
+        <div class="login-card">
+            <div class="login-brand">
+                <img src="{{ url_for('static', filename='img/nyatsime-crest.svg') }}" alt="" class="login-crest d-lg-none">
+                <span class="brand-dot"></span>
+                <small>{{ SCHOOL_NAME }}</small>
+            </div>
+            <h2>Welcome to Nyatsime College</h2>
+            <p class="login-sub">Academic Records &amp; Report Management System</p>
+
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             {% for category, message in messages %}
@@ -22,41 +38,42 @@
             {% endif %}
             {% endwith %}
 
-            <form method="POST" action="{{ url_for('auth.login') }}">
+            <form method="POST" action="{{ url_for('auth.login') }}" autocomplete="on">
                 <div class="mb-3">
-                    <label class="form-label">Username</label>
+                    <label class="form-label" for="username">Username</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        <input type="text" class="form-control" name="username" required placeholder="Enter username">
+                        <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="Enter your username">
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Password</label>
+                <div class="mb-4">
+                    <label class="form-label" for="password">Password</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <input type="password" class="form-control" name="password" id="password" required placeholder="Enter password">
-                        <button class="btn btn-outline-secondary" type="button" id="togglePassword" tabindex="-1">
+                        <input type="password" class="form-control" id="password" name="password" required placeholder="Enter your password">
+                        <button class="btn btn-outline-secondary reveal-btn" type="button" id="togglePassword" tabindex="-1" aria-label="Show password">
                             <i class="bi bi-eye" id="eyeIcon"></i>
                         </button>
                     </div>
                 </div>
-                <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" name="remember" id="remember">
-                    <label class="form-check-label" for="remember">Remember me</label>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="form-check mb-0">
+                        <input type="checkbox" class="form-check-input" name="remember" id="remember">
+                        <label class="form-check-label" for="remember">Remember me</label>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                <button type="submit" class="btn btn-primary btn-lg w-100">
+                    Sign In <i class="bi bi-arrow-right ms-2"></i>
                 </button>
             </form>
 
-            <hr>
-            <div class="text-muted small">
-                <strong>Demo Accounts:</strong><br>
-                Admin: admin / admin123<br>
-                Teacher: teacher1 / teacher123<br>
-                Parent: parent1 / parent123
+            <hr class="soft-hr">
+            <div class="demo-box small text-muted">
+                <strong>Demo accounts</strong><br>
+                Admin: admin / admin123 &nbsp;&bull;&nbsp; Teacher: teacher1 / teacher123 &nbsp;&bull;&nbsp; Parent: parent1 / parent123
             </div>
         </div>
+        <p class="login-footnote">&copy; {{ CURRENT_YEAR }} {{ SCHOOL_NAME }}. All rights reserved.</p>
     </div>
 </div>
 
@@ -66,12 +83,10 @@ document.getElementById('togglePassword').addEventListener('click', function() {
     const eyeIcon = document.getElementById('eyeIcon');
     if (password.type === 'password') {
         password.type = 'text';
-        eyeIcon.classList.remove('bi-eye');
-        eyeIcon.classList.add('bi-eye-slash');
+        eyeIcon.classList.replace('bi-eye', 'bi-eye-slash');
     } else {
         password.type = 'password';
-        eyeIcon.classList.remove('bi-eye-slash');
-        eyeIcon.classList.add('bi-eye');
+        eyeIcon.classList.replace('bi-eye-slash', 'bi-eye');
     }
 });
 </script>

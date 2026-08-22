@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ student.first_name }} {{ student.last_name }} - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}
+<span class="school-chip"><img src="{{ url_for('static', filename='img/nyatsime-crest.svg') }}" alt=""> Student Profile</span>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <a href="{{ url_for('admin.students') }}" class="back-link"><i class="bi bi-arrow-left me-1"></i>Back to Students</a>
+        <h4 class="page-title">{{ student.first_name }} {{ student.last_name }}</h4>
+    </div>
+    <div class="head-actions">
+        <button class="btn btn-outline" data-bs-toggle="modal" data-bs-target="#editStudentModal"><i class="bi bi-pencil me-1"></i>Edit</button>
+    </div>
+</div>
+
+<div class="row g-3 g-lg-4">
+    <div class="col-lg-4">
+        <div class="card-panel profile-card text-center">
+            <span class="avatar-initials xl mx-auto">{{ (student.first_name[0] ~ student.last_name[0])|upper }}</span>
+            <h5 class="mt-3 mb-1">{{ student.first_name }} {{ student.last_name }}</h5>
+            <span class="id-chip">{{ student.admission_number }}</span>
+            <span class="status-badge active mt-2 d-inline-block">Active</span>
+            <hr class="soft-hr">
+            <table class="clean-table kv-table w-100">
+                <tr><td>Gender</td><td>{{ student.gender or '-' }}</td></tr>
+                <tr><td>Date of Birth</td><td>{{ student.date_of_birth.strftime('%d %b %Y') if student.date_of_birth else '-' }}</td></tr>
+                <tr><td>Form</td><td>{{ student.class_obj.grade.name if student.class_obj and student.class_obj.grade else '-' }}</td></tr>
+                <tr><td>Class / Stream</td><td>{{ student.class_obj.name if student.class_obj else '-' }}</td></tr>
+                <tr><td>Enrolled</td><td>{{ student.created_at.strftime('%d %b %Y') if student.created_at else '-' }}</td></tr>
+            </table>
+        </div>
+
+        <div class="card-panel mt-3">
+            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-people me-2"></i>Parent / Guardian</h6></div>
+            {% if student.parent %}
+            <p class="mb-1 fw-semibold">{{ student.parent.first_name }} {{ student.parent.last_name }}</p>
+            <p class="text-muted small mb-0">
+                {% if student.parent.phone %}<i class="bi bi-telephone me-2"></i>{{ student.parent.phone }}<br>{% endif %}
+                {% if student.parent.address %}<i class="bi bi-geo-alt me-2"></i>{{ student.parent.address }}{% endif %}
+            </p>
+            {% else %}
+            <p class="text-muted mb-0">No guardian assigned yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card-panel h-100">
+            <div class="panel-head d-flex justify-content-between align-items-center">
+                <h6 class="panel-title"><i class="bi bi-file-earmark-bar-graph me-2"></i>Academic History</h6>
+                <a href="{{ url_for('admin.reports') }}" class="link-more">All reports</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table clean-table mb-0">
+                    <thead><tr><th>Term</th><th>Year</th><th>Average</th><th>Grade</th><th>Position</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr>
+                            <td>{{ report.academic_term }}</td>
+                            <td>{{ report.academic_year }}</td>
+                            <td><strong>{{ "%.1f"|format(report.average) }}%</strong></td>
+                            <td><span class="grade-chip">{{ report.overall_grade or '-' }}</span></td>
+                            <td>{% if report.position %}{{ report.position }}{% else %}-{% endif %}</td>
+                            <td><span class="status-badge {{ report.status }}">{{ report.status|title }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="empty-row">No reports on record yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editStudentModal" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+        <form method="POST" action="{{ url_for('admin.edit_student', id=student.id) }}">
+            <div class="modal-header"><h5 class="modal-title">Edit Student</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body"><div class="row g-3">
+                <div class="col-6"><label class="form-label">First Name</label><input type="text" class="form-control" name="first_name" value="{{ student.first_name }}" required></div>
+                <div class="col-6"><label class="form-label">Last Name</label><input type="text" class="form-control" name="last_name" value="{{ student.last_name }}" required></div>
+                <div class="col-6"><label class="form-label">Admission No.</label><input type="text" class="form-control" name="admission_number" value="{{ student.admission_number }}" required></div>
+                <div class="col-6"><label class="form-label">Date of Birth</label><input type="date" class="form-control" name="date_of_birth" value="{{ student.date_of_birth.isoformat() if student.date_of_birth else '' }}"></div>
+                <div class="col-6"><label class="form-label">Gender</label><select class="form-select" name="gender"><option value="Male" {% if student.gender == 'Male' %}selected{% endif %}>Male</option><option value="Female" {% if student.gender == 'Female' %}selected{% endif %}>Female</option></select></div>
+                <div class="col-6"><label class="form-label">Parent / Guardian</label>
+                    <select class="form-select" name="parent_id"><option value="">Select</option>
+                    {% for parent in parents_all %}
+                    <option value="{{ parent.id }}" {% if student.parent_id == parent.id %}selected{% endif %}>{{ parent.first_name }} {{ parent.last_name }}</option>
+                    {% endfor %}</select>
+                </div>
+            </div></div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Save Changes</button></div>
+        </form>
+    </div></div>
+</div>
+{% endblock %}

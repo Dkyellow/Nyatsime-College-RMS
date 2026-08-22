@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -28,7 +30,22 @@ def create_app():
 
     @app.context_processor
     def inject_globals():
-        from app.models import User
-        return dict(User=User)
+        from app.models import User, SchoolSetting
+
+        def setting(key, default=''):
+            try:
+                return SchoolSetting.get(key, default)
+            except Exception:
+                return default
+
+        return dict(
+            User=User,
+            SCHOOL_NAME=setting('school_name', 'NYATSIME COLLEGE'),
+            SCHOOL_MOTTO=setting('school_motto', 'Knowledge | Integrity | Excellence'),
+            SCHOOL_ADDRESS=setting('school_address', 'P.O. Box Nyatsime, Zimbabwe'),
+            SCHOOL_PHONE=setting('school_phone', ''),
+            SCHOOL_EMAIL=setting('school_email', ''),
+            CURRENT_YEAR=datetime.now().year,
+        )
 
     return app

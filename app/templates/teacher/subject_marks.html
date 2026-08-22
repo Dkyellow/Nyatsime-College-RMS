@@ -1,0 +1,130 @@
+﻿{% extends "base.html" %}
+{% block title %}Enter Marks: {{ subject.name if subject else class_obj.name }} - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}
+<span class="school-chip"><img src="{{ url_for('static', filename='img/nyatsime-crest.svg') }}" alt=""> Fast Marks Entry</span>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <a href="{{ url_for('teacher.view_class', class_id=class_obj.id) }}" class="back-link"><i class="bi bi-arrow-left me-1"></i>Back to {{ class_obj.name }}</a>
+        <h4 class="page-title">Enter Marks &mdash; {{ subject.name if subject else 'Select a subject' }}</h4>
+        <p class="page-sub">{{ class_obj.name }} &bull; {{ academic_term }} &bull; {{ academic_year }}</p>
+    </div>
+</div>
+
+<form method="GET" class="filter-bar">
+    <input type="hidden" name="year" value="{{ academic_year }}">
+    <div class="filter-field">
+        <label>Term</label>
+        <select class="form-select" name="term" {% if subject %}onchange="this.form.submit()"{% endif %}>
+            {% for t in terms %}<option value="{{ t.name }}" {% if academic_term == t.name %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+            {% if not terms %}<option>Term 1</option><option>Term 2</option><option>Term 3</option>{% endif %}
+        </select>
+    </div>
+    <div class="filter-field">
+        <label>Subject</label>
+        <select class="form-select" name="subject_id" onchange="this.form.submit()">
+            <option value="">Choose subject...</option>
+            {% for s in subjects %}
+            <option value="{{ s.id }}" data-max="{{ s.max_score }}" {% if subject and subject.id == s.id %}selected{% endif %}>{{ s.name }} ({{ s.code }})</option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
+{% if subject %}
+<div class="card-panel">
+    <div class="panel-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="text-muted small">Out of <strong>{{ subject.max_score }}</strong> marks. Leave blank to skip a student.</span>
+    </div>
+    <form method="POST" action="{{ url_for('teacher.save_subject_marks', class_id=class_obj.id) }}" id="marksGridForm" autocomplete="off">
+        <input type="hidden" name="term" value="{{ academic_term }}">
+        <input type="hidden" name="year" value="{{ academic_year }}">
+        <input type="hidden" name="subject_id" value="{{ subject.id }}">
+        <div class="table-responsive">
+            <table class="table clean-table mb-0 marks-entry-table">
+                <thead><tr><th style="width:56px">#</th><th>Student</th><th style="width:150px">Mark (0-{{ subject.max_score }})</th><th style="width:90px" class="text-center">Grade</th></tr></thead>
+                <tbody>
+                    {% for student in students %}
+                    {% set ex = existing.get(student.id) %}
+                    <tr>
+                        <td class="text-muted">{{ loop.index }}</td>
+                        <td>
+                            <span class="student-cell">
+                                <span class="avatar-initials sm">{{ (student.first_name[0] ~ student.last_name[0])|upper }}</span>
+                                <strong>{{ student.last_name }}, {{ student.first_name }}</strong>
+                                {% if ex and ex.status in ['approved', 'published'] %}<span class="status-badge {{ ex.status }}">locked</span>{% endif %}
+                            </span>
+                            <small class="d-block text-muted ms-5 ps-2">{{ student.admission_number }}</small>
+                        </td>
+                        <td>
+                            <input type="number"
+                                   class="form-control mark-input"
+                                   name="score_{{ student.id }}"
+                                   value="{{ '%g'|format(ex.score) if ex and ex.score is not none else '' }}"
+                                   min="0" max="{{ subject.max_score }}" step="0.5"
+                                   inputmode="decimal"
+                                   placeholder="-"
+                                   {% if ex and ex.status in ['approved', 'published'] %}disabled{% endif %}>
+                        </td>
+                        <td class="text-center"><span class="grade-chip live-grade">{% if ex and ex.grade %}{{ ex.grade }}{% else %}&ndash;{% endif %}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="save-bar">
+            <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-check-lg me-1"></i>Save All Marks</button>
+            <span class="text-muted small ms-3 d-none d-md-inline">Tip: press Enter or use arrow keys to move between inputs.</span>
+        </div>
+    </form>
+</div>
+{% else %}
+<div class="card-panel empty-panel">
+    <i class="bi bi-journal-plus"></i>
+    <p>Choose a subject above to start entering marks for the whole class.</p>
+</div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('marksGridForm');
+    if (!form) return;
+    const inputs = [...document.querySelectorAll('.mark-input')];
+
+    // Enter moves down, arrows navigate the grid like a spreadsheet
+    inputs.forEach((input, i) => {
+        input.addEventListener('keydown', function(e) {
+            let target = null;
+            if (e.key === 'Enter' || e.key === 'ArrowDown') target = inputs[i + 1];
+            else if (e.key === 'ArrowUp') target = inputs[i - 1];
+            if (target) { e.preventDefault(); target.focus(); target.select(); }
+        });
+        input.addEventListener('focus', () => input.select());
+        input.addEventListener('input', updateGrade);
+    });
+
+    const scale = {{ grading_scale|tojson }};
+    function gradeFor(score) {
+        const pct = score / {{ subject.max_score }} * 100;
+        if (scale && scale.length) {
+            for (const s of scale) { if (pct >= s.min_score && pct <= s.max_score) return s.grade_letter; }
+        }
+        if (score >= 80) return 'A'; if (score >= 70) return 'B'; if (score >= 60) return 'C';
+        if (score >= 50) return 'D'; if (score >= 40) return 'E'; return 'U';
+    }
+    function updateGrade(e) {
+        const input = e.target;
+        const chip = input.closest('tr').querySelector('.live-grade');
+        const val = parseFloat(input.value);
+        if (isNaN(val)) { chip.innerHTML = '&ndash;'; }
+        else { chip.textContent = gradeFor(val); }
+    }
+
+    // Focus first empty input
+    const firstEmpty = inputs.find(i => i.value === '' && !i.disabled);
+    if (firstEmpty) firstEmpty.focus();
+});
+</script>
+{% endblock %}

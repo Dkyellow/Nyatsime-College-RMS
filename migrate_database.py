@@ -1,156 +1,241 @@
-import sys
+"""Migrate the school reports database to a secondary-school-only Nyatsime College system.
+
+- Removes ECD and Primary School data (education levels, ECD assessment tables/columns,
+  grades, classes, students, reports belonging to those levels).
+- Removes obsolete education_level_id columns.
+- Ensures the Zimbabwean secondary school structure exists:
+  Form 1, Form 2 (Junior Secondary), Form 3, Form 4 (O-Level), Lower 6, Upper 6 (A-Level).
+- Seeds default subjects, grading scale, report template and academic year/terms.
+
+Run:  python migrate_database.py
+"""
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+import sqlite3
 
 from app import create_app, db
 from app.models import (
-    User, Admin, Teacher, Parent, Student, Class, Subject, Report, Mark,
-    ClassTeacher, EducationLevel, Grade, GradeSubject, AcademicYear,
-    AcademicTerm, GradingScale, ReportTemplate, ECDAssessmentField,
-    ECDAssessmentMark
+    Grade, GradeSubject, Subject, GradingScale, AcademicYear,
+    AcademicTerm, ReportTemplate, SchoolSetting,
 )
 
+BASEDIR = os.path.abspath(os.path.dirname(__file__))
+DB_PATH = os.environ.get('DATABASE_URL') or os.path.join(BASEDIR, 'school_reports.db')
+if DB_PATH.startswith('sqlite:///'):
+    DB_PATH = DB_PATH.replace('sqlite:///', '')
+if not os.path.isabs(DB_PATH):
+    DB_PATH = os.path.join(BASEDIR, DB_PATH)
 
-def migrate_database():
-    app = create_app()
+SECONDARY_FORMS = [
+    ('Form 1', 1), ('Form 2', 2), ('Form 3', 3),
+    ('Form 4', 4), ('Lower 6', 5), ('Upper 6', 6),
+]
+
+DEFAULT_SUBJECTS = [
+    ('English Language', 'ENG', 100), ('Mathematics', 'MATH', 100),
+    ('Combined Science', 'SCI', 100), ('Biology', 'BIO', 100),
+    ('Chemistry', 'CHEM', 100), ('Physics', 'PHY', 100),
+    ('Geography', 'GEO', 100), ('History', 'HIST', 100),
+    ('Shona', 'SHONA', 100), ('Ndebele', 'NDEBELE', 100),
+    ('Principles of Accounts', 'POA', 100), ('Commerce', 'COMM', 100),
+    ('Computer Science', 'CS', 100), ('Literature in English', 'LIT', 100),
+    ('Heritage Studies', 'HER', 100), ('Physical Education', 'PE', 100),
+]
+
+# O-Level / A-Level style grade bands
+DEFAULT_GRADING_SCALE = [
+    ('Distinction 1', 80, 100, 'A', 'Very Good', 1),
+    ('Distinction 2', 70, 79.99, 'B', 'Good', 2),
+    ('Credit 1', 60, 69.99, 'C', 'Fairly Good', 3),
+    ('Credit 2', 50, 59.99, 'D', 'Satisfactory', 4),
+    ('Pass', 40, 49.99, 'E', 'Pass', 5),
+    ('Fail', 0, 39.99, 'U', 'Unsatisfactory', 6),
+]
+
+
+def table_exists(cur, name):
+    return cur.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)
+    ).fetchone() is not None
+
+
+def column_exists(cur, table, column):
+    return any(col[1] == column for col in cur.execute(f'PRAGMA table_info({table})').fetchall())
+
+
+def migrate_schema(conn):
+    cur = conn.cursor()
+    print('Removing ECD / Primary structures...')
+
+    # Drop ECD assessment tables entirely
+    for t in ('ecd_assessment_marks', 'ecd_assessment_fields'):
+        if table_exists(cur, t):
+            cur.execute(f'DROP TABLE {t}')
+            print(f'  dropped table {t}')
+
+    # Drop education_levels after collecting ids to purge
+    level_ids = []
+    if table_exists(cur, 'education_levels'):
+        rows = cur.execute('SELECT id, name FROM education_levels').fetchall()
+        level_ids = [r[0] for r in rows if (r[1] or '').lower() != 'secondary']
+        cur.execute('DROP TABLE education_levels')
+        print('  dropped table education_levels')
+
+    # Delete grades (and dependent data) that belonged to non-secondary levels
+    if level_ids:
+        placeholders = ','.join('?' * len(level_ids))
+        grade_rows = cur.execute(
+            f'SELECT id FROM grades WHERE education_level_id IN ({placeholders})',
+            level_ids).fetchall()
+        gids = [g[0] for g in grade_rows]
+        if gids:
+            ph = ','.join('?' * len(gids))
+            class_ids = []
+            if table_exists(cur, 'classes'):
+                class_ids = [r[0] for r in cur.execute(
+                    f'SELECT id FROM classes WHERE grade_id IN ({ph})', gids).fetchall()]
+            if class_ids:
+                cph = ','.join('?' * len(class_ids))
+                if table_exists(cur, 'reports'):
+                    report_ids = [r[0] for r in cur.execute(
+                        f'SELECT id FROM reports WHERE class_id IN ({cph})', class_ids).fetchall()]
+                    if report_ids:
+                        rph = ','.join('?' * len(report_ids))
+                        cur.execute(f'DELETE FROM marks WHERE report_id IN ({rph})', report_ids)
+                        cur.execute(f'DELETE FROM reports WHERE id IN ({rph})', report_ids)
+                cur.execute(f'DELETE FROM students WHERE class_id IN ({cph})', class_ids)
+                if table_exists(cur, 'class_teachers'):
+                    cur.execute(f'DELETE FROM class_teachers WHERE class_id IN ({cph})', class_ids)
+                cur.execute(f'DELETE FROM classes WHERE id IN ({cph})', class_ids)
+            if table_exists(cur, 'grade_subjects'):
+                cur.execute(f'DELETE FROM grade_subjects WHERE grade_id IN ({ph})', gids)
+            cur.execute(f'DELETE FROM grades WHERE id IN ({ph})', gids)
+            print(f'  removed {len(gids)} non-secondary grade(s) with their classes/students/reports')
+
+    # Remove now-obsolete columns. SQLite cannot drop a column when it appears
+    # in the table's own FK definition, so affected tables are rebuilt from
+    # their original CREATE statement (preserving keys, constraints, defaults).
+    for table in ['grades', 'grading_scales', 'report_templates', 'students', 'reports']:
+        if not (table_exists(cur, table) and column_exists(cur, table, 'education_level_id')):
+            continue
+
+        sql = cur.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()[0]
+
+        try:
+            cur.execute(f'ALTER TABLE {table} DROP COLUMN education_level_id')
+            print(f'  dropped column {table}.education_level_id')
+            continue
+        except sqlite3.OperationalError:
+            pass
+
+        # Rebuild from original schema minus the obsolete column definition
+        import re
+        new_sql = re.sub(
+            r',\s*["\']?education_level_id["\']?\s+INTEGER[^,\)]*', '', sql,
+            count=1, flags=re.IGNORECASE)
+        old, tmp = f'{table}__old', f'{table}__new'
+        cur.execute(f'ALTER TABLE "{table}" RENAME TO "{old}"')
+        cur.execute(new_sql.replace(f'CREATE TABLE "{table}"', f'CREATE TABLE "{tmp}"', 1)
+                          .replace(f'CREATE TABLE {table}', f'CREATE TABLE {tmp}', 1))
+        col_list = ', '.join(c[1] for c in cur.execute(f'PRAGMA table_info("{tmp}")').fetchall())
+        cur.execute(f'INSERT INTO main."{tmp}" ({col_list}) SELECT {col_list} FROM main."{old}"')
+        cur.execute(f'DROP TABLE "{old}"')
+        cur.execute(f'ALTER TABLE "{tmp}" RENAME TO "{table}"')
+        print(f'  rebuilt {table} without education_level_id')
+
+    # Clean grading scales / templates that referenced old levels
+    if table_exists(cur, 'grading_scales'):
+        cur.execute('DELETE FROM grading_scales')
+    if table_exists(cur, 'report_templates'):
+        cur.execute("DELETE FROM report_templates WHERE template_type IN ('ecd', 'primary')")
+    conn.commit()
+
+
+def seed_secondary_structure(app):
     with app.app_context():
-        print("Creating all tables...")
         db.create_all()
 
-        if EducationLevel.query.first():
-            print("Migration already done. Skipping.")
-            return
-
-        print("Seeding education levels...")
-        ecd = EducationLevel(name='ECD', description='Early Childhood Development', display_order=1)
-        primary = EducationLevel(name='Primary', description='Primary Education (Grade 1-7)', display_order=2)
-        secondary = EducationLevel(name='Secondary', description='Secondary Education (Form 1-4)', display_order=3)
-        db.session.add_all([ecd, primary, secondary])
+        # Forms
+        existing = {g.name for g in Grade.query.all()}
+        for name, order in SECONDARY_FORMS:
+            if name not in existing:
+                db.session.add(Grade(name=name, display_order=order))
         db.session.flush()
+        print('Secondary forms ensured:', ', '.join(g.name for g in Grade.query.order_by(Grade.display_order)))
 
-        print("Seeding grades...")
-        grades_data = [
-            (ecd.id, 'ECD A', 1), (ecd.id, 'ECD B', 2),
-            (primary.id, 'Grade 1', 1), (primary.id, 'Grade 2', 2),
-            (primary.id, 'Grade 3', 3), (primary.id, 'Grade 4', 4),
-            (primary.id, 'Grade 5', 5), (primary.id, 'Grade 6', 6),
-            (primary.id, 'Grade 7', 7),
-            (secondary.id, 'Form 1', 1), (secondary.id, 'Form 2', 2),
-            (secondary.id, 'Form 3', 3), (secondary.id, 'Form 4', 4),
-        ]
-        grade_objects = {}
-        for level_id, name, order in grades_data:
-            g = Grade(education_level_id=level_id, name=name, display_order=order)
-            db.session.add(g)
+        # Subjects
+        if Subject.query.count() == 0:
+            for name, code, mx in DEFAULT_SUBJECTS:
+                db.session.add(Subject(name=name, code=code, max_score=mx))
+            print('Default secondary subjects seeded.')
+
+        # Assign core subjects to every form if none assigned yet
+        if GradeSubject.query.count() == 0:
+            core_codes = ['ENG', 'MATH', 'SCI', 'GEO', 'HIST', 'SHONA', 'HER', 'PE', 'CS', 'POA', 'COMM', 'BIO', 'CHEM', 'PHY', 'LIT', 'NDEBELE']
+            core = {s.code: s for s in Subject.query.filter(Subject.code.in_(core_codes))}
+            for grade in Grade.query.all():
+                for code, subj in core.items():
+                    db.session.add(GradeSubject(grade_id=grade.id, subject_id=subj.id))
+            print('Subjects assigned to all forms.')
+
+        # Grading scale (single, school-wide)
+        if GradingScale.query.count() == 0:
+            for name, mn, mx, letter, desc, order in DEFAULT_GRADING_SCALE:
+                db.session.add(GradingScale(
+                    name=name, min_score=mn, max_score=mx, grade_letter=letter,
+                    description=desc, display_order=order))
+            print('Grading scale seeded.')
+
+        # Default report template
+        if ReportTemplate.query.count() == 0:
+            db.session.add(ReportTemplate(
+                name='Nyatsime College Secondary Report Card',
+                template_type='secondary',
+                description='Official academic report card for all forms',
+                is_default=True))
+            print('Report template seeded.')
+
+        # Current academic year + terms
+        if AcademicYear.query.count() == 0:
+            year = AcademicYear(name='2026', is_current=True)
+            db.session.add(year)
             db.session.flush()
-            grade_objects[name] = g
+            for i, term in enumerate(['Term 1', 'Term 2', 'Term 3'], start=1):
+                db.session.add(AcademicTerm(academic_year_id=year.id, name=term, display_order=i))
+            print('Academic year 2026 with Terms 1-3 seeded.')
 
-        print("Seeding academic years and terms...")
-        ay1 = AcademicYear(name='2024/2025', is_current=True)
-        ay2 = AcademicYear(name='2025/2026', is_current=False)
-        db.session.add_all([ay1, ay2])
-        db.session.flush()
-
-        for ay in [ay1, ay2]:
-            for i, term_name in enumerate(['Term 1', 'Term 2', 'Term 3'], 1):
-                t = AcademicTerm(academic_year_id=ay.id, name=term_name, display_order=i)
-                db.session.add(t)
-
-        print("Seeding grading scales...")
-        primary_scale = [
-            ('A+', 90, 100, 'A+', 'Excellent', 1),
-            ('A', 80, 89.99, 'A', 'Very Good', 2),
-            ('B+', 70, 79.99, 'B+', 'Good', 3),
-            ('B', 60, 69.99, 'B', 'Above Average', 4),
-            ('C+', 50, 59.99, 'C+', 'Average', 5),
-            ('C', 40, 49.99, 'C', 'Below Average', 6),
-            ('D', 30, 39.99, 'D', 'Poor', 7),
-            ('F', 0, 29.99, 'F', 'Fail', 8),
-        ]
-        for level in [primary, secondary]:
-            for name, min_s, max_s, letter, desc, order in primary_scale:
-                gs = GradingScale(
-                    education_level_id=level.id, name=name,
-                    min_score=min_s, max_score=max_s, grade_letter=letter,
-                    description=desc, display_order=order
-                )
-                db.session.add(gs)
-
-        ecd_scale = [
-            ('Advanced', 85, 100, 'ADV', 'Advanced', 1),
-            ('Proficient', 70, 84.99, 'PRO', 'Proficient', 2),
-            ('Progressing', 50, 69.99, 'PRG', 'Progressing', 3),
-            ('Developing', 0, 49.99, 'DEV', 'Developing', 4),
-        ]
-        for name, min_s, max_s, letter, desc, order in ecd_scale:
-            gs = GradingScale(
-                education_level_id=ecd.id, name=name,
-                min_score=min_s, max_score=max_s, grade_letter=letter,
-                description=desc, display_order=order
-            )
-            db.session.add(gs)
-
-        print("Seeding subjects...")
-        subjects_data = [
-            ('Mathematics', 'MATH'), ('English', 'ENG'), ('Science', 'SCI'),
-            ('Social Studies', 'SOC'), ('Physical Education', 'PE'), ('Art', 'ART'),
-            ('Agriculture', 'AGR'), ('Shona', 'SHO'),
-            ('Biology', 'BIO'), ('Chemistry', 'CHE'), ('Physics', 'PHY'),
-            ('Geography', 'GEO'), ('History', 'HIS'), ('Computer Science', 'CS'),
-        ]
-        subjects = {}
-        for name, code in subjects_data:
-            s = Subject(name=name, code=code, max_score=100)
-            db.session.add(s)
-            db.session.flush()
-            subjects[code] = s
-
-        print("Assigning subjects to grades...")
-        primary_subj_codes = ['MATH', 'ENG', 'SCI', 'SOC', 'PE', 'ART']
-        primary_upper_codes = ['MATH', 'ENG', 'SCI', 'SOC', 'PE', 'ART', 'AGR', 'SHO']
-        secondary_codes = ['MATH', 'ENG', 'BIO', 'CHE', 'PHY', 'GEO', 'HIS', 'CS']
-
-        for grade_name, g_obj in grade_objects.items():
-            if grade_name in ['ECD A', 'ECD B']:
-                continue
-            elif grade_name in ['Grade 1', 'Grade 2', 'Grade 3']:
-                codes = primary_subj_codes
-            elif grade_name in ['Grade 4', 'Grade 5', 'Grade 6', 'Grade 7']:
-                codes = primary_upper_codes
-            else:
-                codes = secondary_codes
-            for code in codes:
-                if code in subjects:
-                    gs = GradeSubject(grade_id=g_obj.id, subject_id=subjects[code].id)
-                    db.session.add(gs)
-
-        print("Seeding ECD assessment fields...")
-        ecd_fields = [
-            ('Social Skills', 'Interaction with peers and adults', 1),
-            ('Motor Skills', 'Physical coordination and movement', 2),
-            ('Cognitive Development', 'Problem solving and thinking skills', 3),
-            ('Language', 'Communication and literacy skills', 4),
-            ('Creative Expression', 'Art, music, and imaginative play', 5),
-        ]
-        for name, desc, order in ecd_fields:
-            f = ECDAssessmentField(name=name, description=desc, display_order=order)
-            db.session.add(f)
-
-        print("Seeding report templates...")
-        for level, ttype, name in [
-            (ecd, 'ecd', 'ECD Developmental Report'),
-            (primary, 'primary', 'Primary School Report Card'),
-            (secondary, 'secondary', 'Secondary School Report Card'),
-        ]:
-            rt = ReportTemplate(
-                education_level_id=level.id, name=name,
-                template_type=ttype, is_default=True
-            )
-            db.session.add(rt)
+        # Brand defaults
+        defaults = {
+            'school_name': 'NYATSIME COLLEGE',
+            'school_motto': 'Knowledge | Integrity | Excellence',
+            'school_address': 'P.O. Box Nyatsime, Zimbabwe',
+            'school_phone': '',
+            'school_email': '',
+        }
+        for k, v in defaults.items():
+            if not SchoolSetting.query.get(k):
+                db.session.add(SchoolSetting(key=k, value=v))
 
         db.session.commit()
-        print("Migration completed successfully!")
+
+
+def main():
+    print(f'Migrating database: {DB_PATH}')
+    if not os.path.exists(DB_PATH):
+        print('Database file not found - nothing to migrate. Run seed.py instead.')
+        return
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        migrate_schema(conn)
+    finally:
+        conn.close()
+
+    app = create_app()
+    seed_secondary_structure(app)
+    print('Migration complete.')
 
 
 if __name__ == '__main__':
-    migrate_database()
+    main()

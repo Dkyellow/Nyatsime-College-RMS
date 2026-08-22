@@ -6,372 +6,153 @@ from flask import render_template_string, current_app
 from datetime import datetime
 
 
-ECD_REPORT_HTML = """
+REPORT_CARD_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <style>
-        @page { size: A4; margin: 12mm 15mm; }
+        @page { size: A4; margin: 12mm 14mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #333; }
-        .header { text-align: center; padding-bottom: 10px; margin-bottom: 12px; }
-        .school-name { font-size: 22pt; font-weight: bold; color: #1B2A4A; margin-bottom: 2px; }
-        .school-motto { font-style: italic; color: #666; font-size: 9pt; }
-        .student-info { margin-bottom: 15px; }
-        .student-info table { width: 100%; border-collapse: collapse; }
-        .student-info td { padding: 3px 0; font-size: 9pt; }
-        .student-info .label { font-weight: bold; width: 120px; color: #333; }
-        .section-title { font-size: 11pt; font-weight: bold; margin: 12px 0 8px 0; color: #333; }
-        .marks-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-        .marks-table th { background: #1B2A4A; color: white; padding: 7px 10px; text-align: left; font-size: 9pt; }
-        .marks-table td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; font-size: 9pt; }
-        .marks-table tr:nth-child(even) { background: #f8f9fa; }
-        .grade-badge { background: #C41E3A; color: white; padding: 2px 10px; border-radius: 4px; font-size: 8pt; font-weight: bold; }
-        .summary-table { width: 100%; margin-bottom: 12px; }
-        .summary-table td { width: 50%; text-align: center; padding: 10px 5px; background: #f0e6ea; border: 2px solid white; }
-        .summary-table .value { font-size: 18pt; font-weight: bold; color: #1B2A4A; }
-        .summary-table .label { font-size: 8pt; color: #666; }
-        .comments { margin-bottom: 12px; }
-        .comment-box { padding: 8px 0; }
-        .comment-box .title { font-weight: bold; color: #1B2A4A; font-size: 9pt; margin-bottom: 2px; }
-        .comment-box .text { font-size: 9pt; color: #333; }
-        .signature-section { width: 100%; margin-top: 15px; }
-        .signature-section td { width: 33%; text-align: center; padding: 0 10px; }
-        .signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; font-size: 8pt; color: #666; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1F2937; }
+        .header { text-align: center; margin-bottom: 4px; }
+        .crest { width: 64px; height: 70px; }
+        .school-name { font-size: 20pt; font-weight: bold; color: #16295F; letter-spacing: 2px; margin-top: 4px; }
+        .school-tag { font-size: 8pt; color: #6B7280; letter-spacing: 3px; text-transform: uppercase; }
+        .motto { font-style: italic; color: #374151; font-size: 9pt; margin-top: 2px; }
+        .report-title { background: #16295F; color: #F7C948; text-align: center; font-size: 11pt;
+                        font-weight: bold; padding: 5px 0; margin: 12px -2mm 0 -2mm; letter-spacing: 2px; }
+        .student-info { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .student-info td { padding: 4px 6px; font-size: 9.5pt; border-bottom: 1px solid #E5EAF1; }
+        .label { font-weight: bold; color: #16295F; width: 16%; }
+        .section-title { font-size: 10.5pt; font-weight: bold; margin: 14px 0 6px 0; color: #16295F;
+                         border-bottom: 2px solid #F7C948; padding-bottom: 3px; }
+        .marks-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+        .marks-table th { background: #16295F; color: white; padding: 7px 8px; text-align: left; font-size: 9pt; }
+        .marks-table th.num { text-align: center; }
+        .marks-table td { padding: 6px 8px; border-bottom: 1px solid #E5EAF1; font-size: 9pt; }
+        .marks-table td.num { text-align: center; }
+        .marks-table tr:nth-child(even) { background: #F6F8FB; }
+        .grade-badge { color: #16295F; font-weight: bold; padding: 1px 8px; border: 1.5px solid #F7C948;
+                       background: #FEF7E0; border-radius: 4px; font-size: 8pt; }
+        .summary-table { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 10px 0 4px 0; }
+        .summary-table td { width: 25%; text-align: center; padding: 9px 4px; background: #F6F8FB;
+                            border: 1px solid #E5EAF1; border-top: 3px solid #F7C948; border-radius: 4px; }
+        .summary-table .value { font-size: 15pt; font-weight: bold; color: #16295F; }
+        .summary-table .lbl { font-size: 7.5pt; color: #6B7280; text-transform: uppercase; letter-spacing: 1px; }
+        .comments { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        .comments td { vertical-align: top; width: 50%; padding-right: 8px; }
+        .comment-box { border: 1px solid #E5EAF1; border-radius: 4px; padding: 8px 10px; min-height: 52px; }
+        .comment-box .title { font-weight: bold; color: #16295F; font-size: 8.5pt; margin-bottom: 3px;
+                              text-transform: uppercase; letter-spacing: 0.5px; }
+        .comment-box .text { font-size: 9pt; color: #374151; }
+        .signature-section { width: 100%; margin-top: 22px; }
+        .signature-section td { width: 33%; text-align: center; padding: 0 8px; }
+        .signature-line { border-top: 1px solid #374151; margin-top: 34px; padding-top: 4px; font-size: 8pt; color: #4B5563; }
+        .footer { text-align: center; font-size: 7.5pt; color: #9CA3AF; margin-top: 14px;
+                  border-top: 1px solid #E5EAF1; padding-top: 6px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="school-name">Hillside Academy</div>
-        <div class="school-motto">"Education For Self Reliance"</div>
+        <img class="crest" src="{{ crest_path }}" />
+        <div class="school-name">{{ school_name }}</div>
+        <div class="school-tag">Academic Report Card</div>
+        {% if school_motto %}<div class="motto">{{ school_motto }}</div>{% endif %}
     </div>
-    <div class="student-info">
-        <table>
-            <tr>
-                <td class="label">Student Name:</td>
-                <td>{{ student.first_name }} {{ student.last_name }}</td>
-                <td class="label">Grade/Class:</td>
-                <td>{{ class_name }}</td>
-            </tr>
-            <tr>
-                <td class="label">Admission No:</td>
-                <td>{{ student.admission_number }}</td>
-                <td class="label">Academic Term:</td>
-                <td>{{ report.academic_term }}</td>
-            </tr>
-            <tr>
-                <td class="label">Gender:</td>
-                <td>{{ student.gender or 'N/A' }}</td>
-                <td class="label">Academic Year:</td>
-                <td>{{ report.academic_year }}</td>
-            </tr>
-        </table>
-    </div>
-    <div class="section-title">Developmental Assessment</div>
-    <table class="marks-table">
-        <thead>
-            <tr>
-                <th width="40">S/N</th>
-                <th>Assessment Area</th>
-                <th width="80">Score</th>
-                <th width="80">Grade</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for mark in ecd_marks %}
-            <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ mark.assessment_field.name }}</td>
-                <td>{{ "%.1f"|format(mark.score) }}</td>
-                <td><span class="grade-badge">{{ mark.grade }}</span></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <table class="summary-table">
-        <tr>
-            <td>
-                <div class="value">{{ "%.1f"|format(report.total_marks) }}</div>
-                <div class="label">Total Score</div>
-            </td>
-            <td>
-                <div class="value">{{ "%.1f"|format(report.average) }}</div>
-                <div class="label">Average</div>
-            </td>
-        </tr>
-    </table>
-    <div class="section-title">Comments</div>
-    <div class="comments">
-        <div class="comment-box">
-            <div class="title">Teacher's Comment:</div>
-            <div class="text">{{ report.teacher_comment or 'No comment provided.' }}</div>
-        </div>
-        <hr style="border:none;border-top:1px solid #e0e0e0;margin:5px 0;">
-        <div class="comment-box">
-            <div class="title">Administrator's Comment:</div>
-            <div class="text">{{ report.admin_comment or 'No comment provided.' }}</div>
-        </div>
-    </div>
-    <table class="signature-section">
-        <tr>
-            <td><div class="signature-line">Class Teacher's Signature</div></td>
-            <td><div class="signature-line">Head Teacher's Signature</div></td>
-            <td><div class="signature-line">Parent/Guardian's Signature</div></td>
-        </tr>
-    </table>
-</body>
-</html>
-"""
 
-PRIMARY_REPORT_HTML = """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        @page { size: A4; margin: 12mm 15mm; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #333; }
-        .header { text-align: center; padding-bottom: 10px; margin-bottom: 12px; }
-        .school-name { font-size: 22pt; font-weight: bold; color: #1B2A4A; margin-bottom: 2px; }
-        .school-motto { font-style: italic; color: #666; font-size: 9pt; }
-        .student-info { margin-bottom: 15px; }
-        .student-info table { width: 100%; border-collapse: collapse; }
-        .student-info td { padding: 3px 0; font-size: 9pt; }
-        .student-info .label { font-weight: bold; width: 120px; color: #333; }
-        .section-title { font-size: 11pt; font-weight: bold; margin: 12px 0 8px 0; color: #333; }
-        .marks-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-        .marks-table th { background: #1B2A4A; color: white; padding: 7px 10px; text-align: left; font-size: 9pt; }
-        .marks-table td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; font-size: 9pt; }
-        .marks-table tr:nth-child(even) { background: #f8f9fa; }
-        .grade-badge { background: #C41E3A; color: white; padding: 2px 10px; border-radius: 4px; font-size: 8pt; font-weight: bold; }
-        .summary-table { width: 100%; margin-bottom: 12px; }
-        .summary-table td { width: 25%; text-align: center; padding: 10px 5px; background: #f0e6ea; border: 2px solid white; }
-        .summary-table .value { font-size: 18pt; font-weight: bold; color: #1B2A4A; }
-        .summary-table .label { font-size: 8pt; color: #666; }
-        .comments { margin-bottom: 12px; }
-        .comment-box { padding: 8px 0; }
-        .comment-box .title { font-weight: bold; color: #1B2A4A; font-size: 9pt; margin-bottom: 2px; }
-        .comment-box .text { font-size: 9pt; color: #333; }
-        .signature-section { width: 100%; margin-top: 15px; }
-        .signature-section td { width: 33%; text-align: center; padding: 0 10px; }
-        .signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; font-size: 8pt; color: #666; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="school-name">Hillside Academy</div>
-        <div class="school-motto">"Education For Self Reliance"</div>
-    </div>
-    <div class="student-info">
-        <table>
-            <tr>
-                <td class="label">Student Name:</td>
-                <td>{{ student.first_name }} {{ student.last_name }}</td>
-                <td class="label">Grade/Class:</td>
-                <td>{{ class_name }}</td>
-            </tr>
-            <tr>
-                <td class="label">Admission No:</td>
-                <td>{{ student.admission_number }}</td>
-                <td class="label">Academic Term:</td>
-                <td>{{ report.academic_term }}</td>
-            </tr>
-            <tr>
-                <td class="label">Gender:</td>
-                <td>{{ student.gender or 'N/A' }}</td>
-                <td class="label">Academic Year:</td>
-                <td>{{ report.academic_year }}</td>
-            </tr>
-        </table>
-    </div>
-    <div class="section-title">Subject Marks</div>
-    <table class="marks-table">
-        <thead>
-            <tr>
-                <th width="40">S/N</th>
-                <th>Subject</th>
-                <th width="80">Score</th>
-                <th width="60">Grade</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for mark in report.marks %}
-            <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ mark.subject.name }}</td>
-                <td>{{ "%.1f"|format(mark.score) }}</td>
-                <td><span class="grade-badge">{{ mark.grade }}</span></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <table class="summary-table">
-        <tr>
-            <td>
-                <div class="value">{{ "%.1f"|format(report.total_marks) }}</div>
-                <div class="label">Total Marks</div>
-            </td>
-            <td>
-                <div class="value">{{ "%.1f"|format(report.average) }}</div>
-                <div class="label">Average</div>
-            </td>
-            <td>
-                <div class="value">{{ report.overall_grade }}</div>
-                <div class="label">Overall Grade</div>
-            </td>
-            <td>
-                <div class="value">{{ report.position }}</div>
-                <div class="label">Class Position</div>
-            </td>
-        </tr>
-    </table>
-    <div class="section-title">Comments</div>
-    <div class="comments">
-        <div class="comment-box">
-            <div class="title">Teacher's Comment:</div>
-            <div class="text">{{ report.teacher_comment or 'No comment provided.' }}</div>
-        </div>
-        <hr style="border:none;border-top:1px solid #e0e0e0;margin:5px 0;">
-        <div class="comment-box">
-            <div class="title">Administrator's Comment:</div>
-            <div class="text">{{ report.admin_comment or 'No comment provided.' }}</div>
-        </div>
-    </div>
-    <table class="signature-section">
-        <tr>
-            <td><div class="signature-line">Class Teacher's Signature</div></td>
-            <td><div class="signature-line">Head Teacher's Signature</div></td>
-            <td><div class="signature-line">Parent/Guardian's Signature</div></td>
-        </tr>
-    </table>
-</body>
-</html>
-"""
+    <div class="report-title">TERM REPORT &mdash; {{ report.academic_term }} &nbsp;&bull;&nbsp; {{ report.academic_year }}</div>
 
-SECONDARY_REPORT_HTML = """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        @page { size: A4; margin: 12mm 15mm; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #333; }
-        .header { text-align: center; padding-bottom: 10px; margin-bottom: 12px; }
-        .school-name { font-size: 22pt; font-weight: bold; color: #1B2A4A; margin-bottom: 2px; }
-        .school-motto { font-style: italic; color: #666; font-size: 9pt; }
-        .student-info { margin-bottom: 15px; }
-        .student-info table { width: 100%; border-collapse: collapse; }
-        .student-info td { padding: 3px 0; font-size: 9pt; }
-        .student-info .label { font-weight: bold; width: 120px; color: #333; }
-        .section-title { font-size: 11pt; font-weight: bold; margin: 12px 0 8px 0; color: #333; }
-        .marks-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-        .marks-table th { background: #1B2A4A; color: white; padding: 7px 10px; text-align: left; font-size: 9pt; }
-        .marks-table td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; font-size: 9pt; }
-        .marks-table tr:nth-child(even) { background: #f8f9fa; }
-        .grade-badge { background: #C41E3A; color: white; padding: 2px 10px; border-radius: 4px; font-size: 8pt; font-weight: bold; }
-        .summary-table { width: 100%; margin-bottom: 12px; }
-        .summary-table td { width: 25%; text-align: center; padding: 10px 5px; background: #f0e6ea; border: 2px solid white; }
-        .summary-table .value { font-size: 18pt; font-weight: bold; color: #1B2A4A; }
-        .summary-table .label { font-size: 8pt; color: #666; }
-        .comments { margin-bottom: 12px; }
-        .comment-box { padding: 8px 0; }
-        .comment-box .title { font-weight: bold; color: #1B2A4A; font-size: 9pt; margin-bottom: 2px; }
-        .comment-box .text { font-size: 9pt; color: #333; }
-        .signature-section { width: 100%; margin-top: 15px; }
-        .signature-section td { width: 33%; text-align: center; padding: 0 10px; }
-        .signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; font-size: 8pt; color: #666; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="school-name">Hillside Academy</div>
-        <div class="school-motto">"Education For Self Reliance"</div>
-    </div>
-    <div class="student-info">
-        <table>
-            <tr>
-                <td class="label">Student Name:</td>
-                <td>{{ student.first_name }} {{ student.last_name }}</td>
-                <td class="label">Grade/Class:</td>
-                <td>{{ class_name }}</td>
-            </tr>
-            <tr>
-                <td class="label">Admission No:</td>
-                <td>{{ student.admission_number }}</td>
-                <td class="label">Academic Term:</td>
-                <td>{{ report.academic_term }}</td>
-            </tr>
-            <tr>
-                <td class="label">Gender:</td>
-                <td>{{ student.gender or 'N/A' }}</td>
-                <td class="label">Academic Year:</td>
-                <td>{{ report.academic_year }}</td>
-            </tr>
-        </table>
-    </div>
-    <div class="section-title">Subject Marks</div>
+    <table class="student-info">
+        <tr>
+            <td class="label">Student Name</td><td><b>{{ student.first_name }} {{ student.last_name }}</b></td>
+            <td class="label">Student ID</td><td>{{ student.admission_number }}</td>
+        </tr>
+        <tr>
+            <td class="label">Form / Class</td><td>{{ form_name }} &mdash; {{ class_name }}</td>
+            <td class="label">Gender</td><td>{{ student.gender or 'N/A' }}</td>
+        </tr>
+        <tr>
+            <td class="label">Date of Birth</td><td>{{ student_dob }}</td>
+            <td class="label">Date Issued</td><td>{{ generated_date }}</td>
+        </tr>
+    </table>
+
+    <div class="section-title">Subject Results</div>
     <table class="marks-table">
         <thead>
             <tr>
-                <th width="40">S/N</th>
+                <th width="36" class="num">#</th>
                 <th>Subject</th>
-                <th width="80">Score</th>
-                <th width="60">Grade</th>
+                <th width="80" class="num">Mark</th>
+                <th width="80" class="num">Percentage</th>
+                <th width="80" class="num">Grade</th>
             </tr>
         </thead>
         <tbody>
-            {% for mark in report.marks %}
+            {% for m in marks %}
             <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ mark.subject.name }}</td>
-                <td>{{ "%.1f"|format(mark.score) }}</td>
-                <td><span class="grade-badge">{{ mark.grade }}</span></td>
+                <td class="num">{{ loop.index }}</td>
+                <td>{{ m.subject.name }}</td>
+                <td class="num">{{ "%.1f"|format(m.score) }} / {{ m.max_score }}</td>
+                <td class="num">{{ "%.1f"|format(m.percent) }}%</td>
+                <td class="num"><span class="grade-badge">{{ m.grade or '-' }}</span></td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
     <table class="summary-table">
         <tr>
             <td>
                 <div class="value">{{ "%.1f"|format(report.total_marks) }}</div>
-                <div class="label">Total Marks</div>
+                <div class="lbl">Total Marks</div>
             </td>
             <td>
-                <div class="value">{{ "%.1f"|format(report.average) }}</div>
-                <div class="label">Average</div>
+                <div class="value">{{ "%.1f"|format(report.average) }}%</div>
+                <div class="lbl">Average</div>
             </td>
             <td>
-                <div class="value">{{ report.overall_grade }}</div>
-                <div class="label">Overall Grade</div>
+                <div class="value">{{ report.overall_grade or '-' }}</div>
+                <div class="lbl">Overall Grade</div>
             </td>
             <td>
-                <div class="value">{{ report.position }}</div>
-                <div class="label">Class Position</div>
+                <div class="value">{% if report.position %}{{ report.position }}{% if class_size %} of {{ class_size }}{% endif %}{% else %}-{% endif %}</div>
+                <div class="lbl">Class Position</div>
             </td>
         </tr>
     </table>
-    <div class="section-title">Comments</div>
-    <div class="comments">
-        <div class="comment-box">
-            <div class="title">Teacher's Comment:</div>
-            <div class="text">{{ report.teacher_comment or 'No comment provided.' }}</div>
-        </div>
-        <hr style="border:none;border-top:1px solid #e0e0e0;margin:5px 0;">
-        <div class="comment-box">
-            <div class="title">Administrator's Comment:</div>
-            <div class="text">{{ report.admin_comment or 'No comment provided.' }}</div>
-        </div>
-    </div>
+
+    <div class="section-title">Remarks</div>
+    <table class="comments">
+        <tr>
+            <td>
+                <div class="comment-box">
+                    <div class="title">Class Teacher's Remark</div>
+                    <div class="text">{{ report.teacher_comment or 'No comment provided.' }}</div>
+                </div>
+            </td>
+            <td>
+                <div class="comment-box">
+                    <div class="title">Head's Remark</div>
+                    <div class="text">{{ report.admin_comment or 'No comment provided.' }}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
     <table class="signature-section">
         <tr>
             <td><div class="signature-line">Class Teacher's Signature</div></td>
-            <td><div class="signature-line">Head Teacher's Signature</div></td>
+            <td><div class="signature-line">Head's Signature</div></td>
             <td><div class="signature-line">Parent/Guardian's Signature</div></td>
         </tr>
     </table>
+
+    <div class="footer">
+        {{ school_name }}{% if school_address %} &bull; {{ school_address }}{% endif %}{% if school_phone %} &bull; Tel: {{ school_phone }}{% endif %}{% if school_email %} &bull; {{ school_email }}{% endif %}
+        <br/>This is an official academic document generated by the Nyatsime College Academic Records System.
+    </div>
 </body>
 </html>
 """
@@ -404,32 +185,44 @@ def generate_report_card_pdf(report):
     student = report.student
     class_obj = report.class_obj
 
-    template_type = 'primary'
-    if class_obj and class_obj.grade and class_obj.grade.education_level:
-        level_name = class_obj.grade.education_level.name
-        if level_name == 'ECD':
-            template_type = 'ecd'
-        elif level_name == 'Secondary':
-            template_type = 'secondary'
+    marks = []
+    for m in report.marks:
+        max_score = m.max_score or 100
+        percent = (m.score / max_score) * 100 if max_score else 0
+        marks.append({
+            'subject': m.subject,
+            'score': m.score or 0,
+            'max_score': max_score,
+            'percent': percent,
+            'grade': m.grade,
+        })
 
-    ecd_marks = []
-    if template_type == 'ecd':
-        ecd_marks = report.ecd_marks
+    from app.models import SchoolSetting, Student as StudentModel
 
-    if template_type == 'ecd':
-        html_template = ECD_REPORT_HTML
-    elif template_type == 'secondary':
-        html_template = SECONDARY_REPORT_HTML
-    else:
-        html_template = PRIMARY_REPORT_HTML
+    def setting(key, default=''):
+        return SchoolSetting.get(key, default)
+
+    crest_path = os.path.join(current_app.root_path, 'static', 'img', 'nyatsime-crest.png')
+    class_size = StudentModel.query.filter_by(class_id=report.class_id, is_active=True).count()
+
+    dob = student.date_of_birth.strftime('%d %B %Y') if student.date_of_birth else 'N/A'
 
     html_content = render_template_string(
-        html_template,
+        REPORT_CARD_HTML,
         student=student,
+        student_dob=dob,
         class_name=class_obj.name if class_obj else 'N/A',
+        form_name=class_obj.grade.name if class_obj and class_obj.grade else 'N/A',
         report=report,
-        ecd_marks=ecd_marks,
-        generated_date=datetime.now().strftime('%B %d, %Y')
+        marks=marks,
+        class_size=class_size,
+        crest_path=crest_path,
+        school_name=setting('school_name', 'NYATSIME COLLEGE'),
+        school_motto=setting('school_motto', ''),
+        school_address=setting('school_address', ''),
+        school_phone=setting('school_phone', ''),
+        school_email=setting('school_email', ''),
+        generated_date=datetime.now().strftime('%d %B %Y'),
     )
 
     output = BytesIO()

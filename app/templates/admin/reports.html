@@ -1,111 +1,122 @@
 {% extends "base.html" %}
-{% block title %}Reports - School Report System{% endblock %}
+{% block title %}Report Cards - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}
+<span class="school-chip"><img src="{{ url_for('static', filename='img/nyatsime-crest.svg') }}" alt=""> Report Cards</span>
+{% endblock %}
 {% block content %}
-<div class="page-header-mobile">
-    <h4 class="mb-0">Report Management</h4>
-    <div class="header-actions">
-        <a href="{{ url_for('admin.export_reports', term=request.args.get('term','Term 1'), year=request.args.get('year','2024/2025')) }}" class="btn btn-info btn-sm"><i class="bi bi-download"></i> Export CSV</a>
+<div class="page-head">
+    <div>
+        <h4 class="page-title">Report Cards</h4>
+        <p class="page-sub">Review, approve and publish student report cards.</p>
+    </div>
+    <div class="head-actions">
+        <a href="{{ url_for('admin.export_reports', term=request.args.get('term', ''), year=request.args.get('year', '')) }}" class="btn btn-outline"><i class="bi bi-download me-1"></i>Export CSV</a>
     </div>
 </div>
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label">Status</label>
-                <select class="form-select" name="status" onchange="this.form.submit()">
-                    <option value="">All Status</option>
-                    <option value="draft" {% if current_status == 'draft' %}selected{% endif %}>Draft</option>
-                    <option value="submitted" {% if current_status == 'submitted' %}selected{% endif %}>Submitted</option>
-                    <option value="approved" {% if current_status == 'approved' %}selected{% endif %}>Approved</option>
-                    <option value="published" {% if current_status == 'published' %}selected{% endif %}>Published</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Education Level</label>
-                <select class="form-select" name="level_id" onchange="loadGradesForReports(this.value)">
-                    <option value="">All Levels</option>
-                    {% for level in education_levels %}
-                    <option value="{{ level.id }}" {% if selected_level == level.id %}selected{% endif %}>{{ level.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Grade</label>
-                <select class="form-select" name="grade_id" id="reportGradeFilter">
-                    <option value="">All Grades</option>
-                    {% for grade in grades %}
-                    <option value="{{ grade.id }}" {% if selected_grade == grade.id %}selected{% endif %}>{{ grade.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-2"></i>Filter</button>
-            </div>
-        </form>
-    </div>
+
+<div class="status-tabs">
+    <a href="{{ url_for('admin.reports') }}" class="status-tab {% if not current_status %}active{% endif %}">All</a>
+    <a href="{{ url_for('admin.reports', status='draft') }}" class="status-tab {% if current_status == 'draft' %}active{% endif %}">Draft</a>
+    <a href="{{ url_for('admin.reports', status='submitted') }}" class="status-tab {% if current_status == 'submitted' %}active gold{% endif %}">
+        Pending Approval
+    </a>
+    <a href="{{ url_for('admin.reports', status='approved') }}" class="status-tab {% if current_status == 'approved' %}active{% endif %}">Approved</a>
+    <a href="{{ url_for('admin.reports', status='published') }}" class="status-tab {% if current_status == 'published' %}active{% endif %}">Published</a>
 </div>
-<div class="table-container">
-    <div class="table-responsive">
-    <table class="table table-hover mb-0">
-        <thead><tr><th>Student</th><th>Class</th><th>Level</th><th>Term</th><th>Year</th><th>Average</th><th>Grade</th><th>Position</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
-        <tbody>
-            {% for report in reports.items %}
-            <tr>
-                <td>{{ report.student.first_name }} {{ report.student.last_name }}</td>
-                <td>{{ report.class_obj.name if report.class_obj else 'N/A' }}</td>
-                <td>{% if report.class_obj and report.class_obj.grade %}<span class="badge bg-info">{{ report.class_obj.grade.education_level.name }}</span>{% endif %}</td>
-                <td>{{ report.academic_term }}</td>
-                <td>{{ report.academic_year }}</td>
-                <td>{{ "%.1f"|format(report.average) }}</td>
-                <td><span class="badge bg-primary">{{ report.overall_grade }}</span></td>
-                <td>{{ report.position or 'N/A' }}</td>
-                <td><span class="badge {% if report.status == 'published' %}bg-success{% elif report.status == 'approved' %}bg-info{% elif report.status == 'submitted' %}bg-warning{% else %}bg-secondary{% endif %}">{{ report.status|title }}</span></td>
-                <td class="text-end">
-                    {% if report.status == 'submitted' %}
-                    <button class="btn btn-sm btn-outline-success me-1" data-bs-toggle="modal" data-bs-target="#approveModal{{ report.id }}"><i class="bi bi-check-lg"></i></button>
-                    {% endif %}
-                    {% if report.status == 'approved' %}
-                    <form method="POST" action="{{ url_for('admin.publish_report', id=report.id) }}" class="d-inline"><button type="submit" class="btn btn-sm btn-success" data-confirm="Publish this report?"><i class="bi bi-send me-1"></i>Publish</button></form>
-                    {% endif %}
-                </td>
-            </tr>
-            {% if report.status == 'submitted' %}
-            <div class="modal fade" id="approveModal{{ report.id }}" tabindex="-1">
-                <div class="modal-dialog"><div class="modal-content">
-                    <form method="POST" action="{{ url_for('admin.approve_report', id=report.id) }}">
-                        <div class="modal-header"><h5 class="modal-title">Approve Report</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                        <div class="modal-body"><label class="form-label">Admin Comment</label><textarea class="form-control" name="admin_comment" rows="3"></textarea></div>
-                        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-success">Approve</button></div>
-                    </form>
-                </div></div>
-            </div>
-            {% endif %}
+
+<form method="GET" class="filter-bar">
+    {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+    <div class="filter-field">
+        <label>Form</label>
+        <select class="form-select" name="grade_id">
+            <option value="">All Forms</option>
+            {% for grade in grades %}
+            <option value="{{ grade.id }}" {% if selected_grade == grade.id %}selected{% endif %}>{{ grade.name }}</option>
             {% endfor %}
-        </tbody>
-    </table>
+        </select>
+    </div>
+    <div class="filter-field">
+        <label>Class / Stream</label>
+        <select class="form-select" name="class_id">
+            <option value="">All Classes</option>
+            {% for c in classes|sort(attribute='name') %}
+            <option value="{{ c.id }}" {% if selected_class == c.id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-field btns">
+        <label>&nbsp;</label>
+        <button type="submit" class="btn btn-primary w-100">Filter</button>
+    </div>
+</form>
+
+<div class="card-panel">
+    <div class="panel-head d-flex justify-content-between align-items-center">
+        <span class="text-muted small">{{ reports.total }} report{{ 's' if reports.total != 1 }} found</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table clean-table mb-0">
+            <thead><tr><th>Student</th><th>Class / Stream</th><th>Term &amp; Year</th><th>Average</th><th>Grade</th><th>Position</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+            <tbody>
+                {% for report in reports.items %}
+                <tr>
+                    <td>
+                        <span class="student-cell">
+                            <span class="avatar-initials">{{ (report.student.first_name[0] ~ report.student.last_name[0])|upper }}</span>
+                            <strong>{{ report.student.first_name }} {{ report.student.last_name }}</strong>
+                        </span>
+                    </td>
+                    <td>{{ report.class_obj.name if report.class_obj else '-' }}</td>
+                    <td>{{ report.academic_term }} &bull; {{ report.academic_year }}</td>
+                    <td><strong>{{ "%.1f"|format(report.average) }}%</strong></td>
+                    <td><span class="grade-chip">{{ report.overall_grade or '-' }}</span></td>
+                    <td>{{ report.position or '-' }}</td>
+                    <td><span class="status-badge {{ report.status }}">{{ report.status|title }}</span></td>
+                    <td class="text-end action-cell">
+                        {% if report.status == 'submitted' %}
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#approveModal{{ report.id }}"><i class="bi bi-check2-circle me-1"></i>Approve</button>
+                        {% elif report.status == 'approved' %}
+                        <form method="POST" action="{{ url_for('admin.publish_report', id=report.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-success btn-sm" data-confirm="Publish this report? Parents will be able to view it."><i class="bi bi-send me-1"></i>Publish</button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted small">&mdash;</span>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                <!-- Approve modal -->
+                <div class="modal fade" id="approveModal{{ report.id }}" tabindex="-1">
+                    <div class="modal-dialog"><div class="modal-content">
+                        <form method="POST" action="{{ url_for('admin.approve_report', id=report.id) }}">
+                            <div class="modal-header"><h5 class="modal-title">Approve Report</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                            <div class="modal-body">
+                                <p class="mb-3">Approving the report for <strong>{{ report.student.first_name }} {{ report.student.last_name }}</strong> ({{ report.academic_term }}).</p>
+                                <label class="form-label">Head's Remark (optional)</label>
+                                <textarea class="form-control" name="admin_comment" rows="3" placeholder="Overall remark from the Head..."></textarea>
+                            </div>
+                            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle me-1"></i>Approve Report</button></div>
+                        </form>
+                    </div></div>
+                </div>
+                {% else %}
+                <tr><td colspan="8" class="empty-row">No reports match your filters.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% if reports.pages > 1 %}
-    <div class="d-flex justify-content-center py-3">
-        <nav><ul class="pagination mb-0">
-            {% if reports.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ reports.prev_num }}&status={{ current_status }}">Prev</a></li>{% endif %}
+    <nav class="pager">
+        <ul class="pagination pagination-sm mb-0">
+            {% set qs = '&status=' ~ current_status ~ '&grade_id=' ~ (selected_grade or '') ~ '&class_id=' ~ (selected_class or '') %}
+            {% if reports.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ reports.prev_num }}{{ qs }}">Prev</a></li>{% endif %}
             {% for p in reports.iter_pages() %}
-            {% if p %}<li class="page-item {% if p == reports.page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&status={{ current_status }}">{{ p }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+            {% if p %}<li class="page-item {% if p == reports.page %}active{% endif %}"><a class="page-link" href="?page={{ p }}{{ qs }}">{{ p }}</a></li>
+            {% else %}<li class="page-item disabled"><span class="page-link">&hellip;</span></li>{% endif %}
             {% endfor %}
-            {% if reports.has_next %}<li class="page-item"><a class="page-link" href="?page={{ reports.next_num }}&status={{ current_status }}">Next</a></li>{% endif %}
-        </ul></nav>
-    </div>
+            {% if reports.has_next %}<li class="page-item"><a class="page-link" href="?page={{ reports.next_num }}{{ qs }}">Next</a></li>{% endif %}
+        </ul>
+    </nav>
     {% endif %}
 </div>
-{% endblock %}
-{% block extra_js %}
-<script>
-function loadGradesForReports(levelId) {
-    if (!levelId) { document.getElementById('reportGradeFilter').innerHTML = '<option value="">All Grades</option>'; return; }
-    fetch('/admin/api/grades-by-level/' + levelId).then(r => r.json()).then(data => {
-        let html = '<option value="">All Grades</option>';
-        data.forEach(g => { html += '<option value="' + g.id + '">' + g.name + '</option>'; });
-        document.getElementById('reportGradeFilter').innerHTML = html;
-    });
-}
-</script>
 {% endblock %}
