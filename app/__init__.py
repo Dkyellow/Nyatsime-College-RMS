@@ -21,12 +21,12 @@ def create_app():
     from app.auth import auth_bp
     from app.admin import admin_bp
     from app.teacher import teacher_bp
-    from app.parent import parent_bp
+    from app.student import student_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(teacher_bp, url_prefix='/teacher')
-    app.register_blueprint(parent_bp, url_prefix='/parent')
+    app.register_blueprint(student_bp, url_prefix='/student')
 
     @app.context_processor
     def inject_globals():
