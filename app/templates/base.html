@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}School Report System{% endblock %}</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <div class="d-flex">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <i class="bi bi-mortarboard-fill"></i>
+                <span>Hillside Academy</span>
+            </div>
+            <ul class="sidebar-nav">
+                {% if current_user.role == 'admin' %}
+                <li class="{% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+                    <a href="{{ url_for('admin.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                </li>
+                <li class="{% if 'student' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('admin.students') }}"><i class="bi bi-people"></i> Students</a>
+                </li>
+                <li class="{% if 'teacher' in request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('admin.teachers') }}"><i class="bi bi-person-badge"></i> Teachers</a>
+                </li>
+                <li class="{% if 'parent' in request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('admin.parents') }}"><i class="bi bi-person-hearts"></i> Parents</a>
+                </li>
+                <li class="sidebar-divider"></li>
+                <li class="sidebar-section">Education Structure</li>
+                <li class="{% if request.endpoint == 'admin.education_levels' %}active{% endif %}">
+                    <a href="{{ url_for('admin.education_levels') }}"><i class="bi bi-layers"></i> Education Levels</a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.grades' %}active{% endif %}">
+                    <a href="{{ url_for('admin.grades') }}"><i class="bi bi-sort-numeric-up"></i> Grades</a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.grade_subjects' %}active{% endif %}">
+                    <a href="{{ url_for('admin.grade_subjects') }}"><i class="bi bi-book-half"></i> Grade Subjects</a>
+                </li>
+                <li class="sidebar-divider"></li>
+                <li class="sidebar-section">Academic Setup</li>
+                <li class="{% if request.endpoint == 'admin.classes' %}active{% endif %}">
+                    <a href="{{ url_for('admin.classes') }}"><i class="bi bi-building"></i> Classes</a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.subjects' %}active{% endif %}">
+                    <a href="{{ url_for('admin.subjects') }}"><i class="bi bi-book"></i> Subjects</a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.academic_years' %}active{% endif %}">
+                    <a href="{{ url_for('admin.academic_years') }}"><i class="bi bi-calendar3"></i> Academic Years</a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.grading_scales' %}active{% endif %}">
+                    <a href="{{ url_for('admin.grading_scales') }}"><i class="bi bi-bar-chart-line"></i> Grading Scales</a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.report_templates' %}active{% endif %}">
+                    <a href="{{ url_for('admin.report_templates') }}"><i class="bi bi-file-earmark-medical"></i> Report Templates</a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.ecd_fields' %}active{% endif %}">
+                    <a href="{{ url_for('admin.ecd_fields') }}"><i class="bi bi-clipboard-data"></i> ECD Fields</a>
+                </li>
+                <li class="sidebar-divider"></li>
+                <li class="{% if 'report' in request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('admin.reports') }}"><i class="bi bi-file-earmark-text"></i> Reports</a>
+                </li>
+                {% elif current_user.role == 'teacher' %}
+                <li class="{% if request.endpoint == 'teacher.dashboard' %}active{% endif %}">
+                    <a href="{{ url_for('teacher.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                </li>
+                {% for class in current_user.teacher_profile.classes %}
+                <li class="{% if request.view_args and request.view_args.get('class_id') == class.id %}active{% endif %}">
+                    <a href="{{ url_for('teacher.view_class', class_id=class.id) }}"><i class="bi bi-door-open"></i> {{ class.name }}</a>
+                </li>
+                {% endfor %}
+                {% elif current_user.role == 'parent' %}
+                <li class="{% if request.endpoint == 'parent.dashboard' %}active{% endif %}">
+                    <a href="{{ url_for('parent.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                </li>
+                {% for child in current_user.parent_profile.children %}
+                <li class="{% if request.view_args and request.view_args.get('student_id') == child.id %}active{% endif %}">
+                    <a href="{{ url_for('parent.view_report', student_id=child.id) }}"><i class="bi bi-person"></i> {{ child.first_name }}</a>
+                </li>
+                {% endfor %}
+                {% endif %}
+            </ul>
+        </nav>
+        <div class="main-content">
+            <nav class="top-nav">
+                <button class="btn btn-link d-md-none" id="sidebarToggle"><i class="bi bi-list fs-4"></i></button>
+                <div class="ms-auto dropdown">
+                    <button class="btn btn-link dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-person-circle"></i> {{ current_user.username }}</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-item-text text-muted">{{ current_user.role|title }}</span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+                    </ul>
+                </div>
+            </nav>
+            <div class="content-wrapper">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    {% block auth_content %}{% endblock %}
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Teacher Dashboard - School Report System{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">Teacher Dashboard</h4>
+    <span class="text-muted">Welcome, {{ teacher.first_name }} {{ teacher.last_name }}</span>
+</div>
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value">{{ classes|length }}</div><div class="label">Assigned Classes</div></div>
+                <div class="icon blue"><i class="bi bi-door-open"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value">{{ total_students }}</div><div class="label">Total Students</div></div>
+                <div class="icon green"><i class="bi bi-people"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value">{{ drafts }}</div><div class="label">Draft Reports</div></div>
+                <div class="icon orange"><i class="bi bi-file-earmark-text"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header"><i class="bi bi-door-open me-2"></i>My Assigned Classes</div>
+    <div class="card-body">
+        <div class="row g-4">
+            {% for class in classes %}
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ class.name }}</h5>
+                        {% if class.grade %}
+                        <p class="mb-1"><span class="badge bg-info">{{ class.grade.education_level.name }}</span> <span class="badge bg-secondary">{{ class.grade.name }}</span></p>
+                        {% endif %}
+                        <p class="text-muted mb-3"><i class="bi bi-people me-2"></i>{{ class.students|length }} Students</p>
+                        <a href="{{ url_for('teacher.view_class', class_id=class.id) }}" class="btn btn-primary btn-sm"><i class="bi bi-eye me-2"></i>View Class</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

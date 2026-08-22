@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Parent Dashboard - School Report System{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">Parent Dashboard</h4>
+    <span class="text-muted">Welcome, {{ parent.first_name }}</span>
+</div>
+<div class="row g-4">
+    {% for child in children %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="icon blue me-3"><i class="bi bi-person"></i></div>
+                    <div>
+                        <h5 class="card-title mb-0">{{ child.first_name }} {{ child.last_name }}</h5>
+                        <small class="text-muted">{{ child.admission_number }}</small>
+                    </div>
+                </div>
+                <table class="table table-sm mb-3">
+                    <tr><td class="text-muted">Class:</td><td>{{ child.class_obj.name if child.class_obj else 'N/A' }}</td></tr>
+                    <tr><td class="text-muted">Gender:</td><td>{{ child.gender or 'N/A' }}</td></tr>
+                    {% if child.class_obj and child.class_obj.grade %}
+                    <tr><td class="text-muted">Level:</td><td><span class="badge bg-info">{{ child.class_obj.grade.education_level.name }}</span></td></tr>
+                    <tr><td class="text-muted">Grade:</td><td>{{ child.class_obj.grade.name }}</td></tr>
+                    {% endif %}
+                </table>
+                <a href="{{ url_for('parent.view_report', student_id=child.id, term=current_term.name if current_term else 'Term 1', year=current_year.name if current_year else '2024/2025') }}" class="btn btn-primary w-100"><i class="bi bi-file-earmark-text me-2"></i>View Report</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% if not children %}
+<div class="text-center py-5">
+    <i class="bi bi-person-x text-muted" style="font-size: 48px;"></i>
+    <p class="text-muted mt-3">No children linked to your account.</p>
+</div>
+{% endif %}
+{% endblock %}

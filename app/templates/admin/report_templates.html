@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Report Templates - School Report System{% endblock %}
+{% block content %}
+<div class="page-header-mobile">
+    <h4 class="mb-0">Report Templates</h4>
+    <div class="header-actions">
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTemplateModal"><i class="bi bi-plus-circle"></i> Add Template</button>
+    </div>
+</div>
+<div class="table-container">
+    <div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead><tr><th>Name</th><th>Education Level</th><th>Type</th><th>Default</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+            {% for template in report_templates %}
+            <tr>
+                <td><strong>{{ template.name }}</strong></td>
+                <td><span class="badge bg-info">{{ template.education_level.name }}</span></td>
+                <td><span class="badge bg-secondary">{{ template.template_type|upper }}</span></td>
+                <td>{% if template.is_default %}<span class="badge bg-success">Default</span>{% endif %}</td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editTemplateModal{{ template.id }}"><i class="bi bi-pencil"></i></button>
+                    <form method="POST" action="{{ url_for('admin.delete_report_template', id=template.id) }}" class="d-inline"><button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete?"><i class="bi bi-trash"></i></button></form>
+                </td>
+            </tr>
+            <div class="modal fade" id="editTemplateModal{{ template.id }}" tabindex="-1">
+                <div class="modal-dialog"><div class="modal-content">
+                    <form method="POST" action="{{ url_for('admin.edit_report_template', id=template.id) }}">
+                        <div class="modal-header"><h5 class="modal-title">Edit Template</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                        <div class="modal-body"><div class="row g-3">
+                            <div class="col-12"><label class="form-label">Name</label><input type="text" class="form-control" name="name" value="{{ template.name }}" required></div>
+                            <div class="col-6"><label class="form-label">Education Level</label><select class="form-select" name="education_level_id" required>{% for level in education_levels %}<option value="{{ level.id }}" {% if template.education_level_id == level.id %}selected{% endif %}>{{ level.name }}</option>{% endfor %}</select></div>
+                            <div class="col-6"><label class="form-label">Template Type</label><select class="form-select" name="template_type" required><option value="ecd" {% if template.template_type == 'ecd' %}selected{% endif %}>ECD</option><option value="primary" {% if template.template_type == 'primary' %}selected{% endif %}>Primary</option><option value="secondary" {% if template.template_type == 'secondary' %}selected{% endif %}>Secondary</option></select></div>
+                            <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2">{{ template.description or '' }}</textarea></div>
+                        </div></div>
+                        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+                    </form>
+                </div></div>
+            </div>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+<div class="modal fade" id="addTemplateModal" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+        <form method="POST" action="{{ url_for('admin.add_report_template') }}">
+            <div class="modal-header"><h5 class="modal-title">Add Report Template</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body"><div class="row g-3">
+                <div class="col-12"><label class="form-label">Name</label><input type="text" class="form-control" name="name" required></div>
+                <div class="col-6"><label class="form-label">Education Level</label><select class="form-select" name="education_level_id" required>{% for level in education_levels %}<option value="{{ level.id }}">{{ level.name }}</option>{% endfor %}</select></div>
+                <div class="col-6"><label class="form-label">Template Type</label><select class="form-select" name="template_type" required><option value="ecd">ECD</option><option value="primary">Primary</option><option value="secondary">Secondary</option></select></div>
+                <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2"></textarea></div>
+            </div></div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Add</button></div>
+        </form>
+    </div></div>
+</div>
+{% endblock %}

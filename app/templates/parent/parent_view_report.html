@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Report Card - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+{% block content %}
+<div class="page-header-mobile">
+    <div>
+        <h4 class="mb-0">Report Card</h4>
+        <small class="text-muted">{{ student.first_name }} {{ student.last_name }} | {{ report.academic_term }} {{ report.academic_year }}</small>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('parent.download_report', student_id=student.id, term=report.academic_term, year=report.academic_year) }}" class="btn btn-success btn-sm"><i class="bi bi-download"></i> Download PDF</a>
+        <a href="{{ url_for('parent.dashboard') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('parent.view_report', student_id=student.id) }}" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Academic Year</label>
+                <select class="form-select" name="year" onchange="this.form.submit()">
+                    {% for year in academic_years %}
+                    <option value="{{ year.name }}" {% if year.name == selected_year %}selected{% endif %}>{{ year.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Term</label>
+                <select class="form-select" name="term" onchange="this.form.submit()">
+                    {% for term in terms %}
+                    <option value="{{ term.name }}" {% if term.name == selected_term %}selected{% endif %}>{{ term.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="report-preview">
+    <div class="report-card-header">
+        <h2>Hillside Academy</h2>
+        <p>"Education For Self Reliance"</p>
+    </div>
+    <div class="student-info">
+        <div class="info-row">
+            <span class="info-label">Student Name:</span>
+            <span class="info-value">{{ student.first_name }} {{ student.last_name }}</span>
+            <span class="info-label">Grade/Class:</span>
+            <span class="info-value">{{ student.class_obj.name if student.class_obj else 'N/A' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Admission No:</span>
+            <span class="info-value">{{ student.admission_number }}</span>
+            <span class="info-label">Academic Term:</span>
+            <span class="info-value">{{ report.academic_term }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Gender:</span>
+            <span class="info-value">{{ student.gender or 'N/A' }}</span>
+            <span class="info-label">Academic Year:</span>
+            <span class="info-value">{{ report.academic_year }}</span>
+        </div>
+    </div>
+    {% if is_ecd %}
+    <h5><i class="bi bi-clipboard-data me-2"></i>Developmental Assessment</h5>
+    <div class="table-responsive">
+    <table class="table table-bordered mb-3 marks-table">
+        <thead><tr><th width="40">S/N</th><th>Assessment Area</th><th width="80">Score</th><th width="60">Grade</th></tr></thead>
+        <tbody>
+            {% for mark in ecd_marks %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ mark.assessment_field.name }}</td>
+                <td>{{ "%.1f"|format(mark.score) }}</td>
+                <td><span class="grade-badge">{{ mark.grade }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <h5><i class="bi bi-table me-2"></i>Subject Marks</h5>
+    <div class="table-responsive">
+    <table class="table table-bordered mb-3 marks-table">
+        <thead><tr><th width="40">S/N</th><th>Subject</th><th width="80">Score</th><th width="60">Grade</th></tr></thead>
+        <tbody>
+            {% for mark in report.marks %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ mark.subject.name }}</td>
+                <td>{{ "%.1f"|format(mark.score) }}</td>
+                <td><span class="grade-badge">{{ mark.grade }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% endif %}
+    <div class="summary-cards">
+        <div class="summary-card"><h4>{{ "%.1f"|format(report.total_marks) }}</h4><small>Total</small></div>
+        <div class="summary-card"><h4>{{ "%.1f"|format(report.average) }}</h4><small>Average</small></div>
+        <div class="summary-card"><h4>{{ report.overall_grade }}</h4><small>Grade</small></div>
+        <div class="summary-card"><h4>{{ report.position }}</h4><small>Position</small></div>
+    </div>
+    <h5><i class="bi bi-chat-text me-2"></i>Comments</h5>
+    <div class="comments-section">
+        <div class="comment-item"><strong>Teacher's Comment:</strong><p>{{ report.teacher_comment or 'No comment provided.' }}</p></div>
+        <hr>
+        <div class="comment-item"><strong>Administrator's Comment:</strong><p>{{ report.admin_comment or 'No comment provided.' }}</p></div>
+    </div>
+    <div class="signature-section">
+        <div class="signature-box"><div class="signature-line"></div><span>Class Teacher's Signature</span></div>
+        <div class="signature-box"><div class="signature-line"></div><span>Head Teacher's Signature</span></div>
+        <div class="signature-box"><div class="signature-line"></div><span>Parent/Guardian's Signature</span></div>
+    </div>
+</div>
+{% endblock %}

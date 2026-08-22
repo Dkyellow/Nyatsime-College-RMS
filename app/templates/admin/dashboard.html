@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard - School Report System{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">Admin Dashboard</h4>
+    <span class="text-muted">Welcome, {{ current_user.username }}</span>
+</div>
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value">{{ total_students }}</div><div class="label">Total Students</div></div>
+                <div class="icon blue"><i class="bi bi-people"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value">{{ total_teachers }}</div><div class="label">Total Teachers</div></div>
+                <div class="icon green"><i class="bi bi-person-badge"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value">{{ total_parents }}</div><div class="label">Total Parents</div></div>
+                <div class="icon orange"><i class="bi bi-person-hearts"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value">{{ total_reports }}</div><div class="label">Total Reports</div></div>
+                <div class="icon purple"><i class="bi bi-file-earmark-text"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value">{{ ecd_count }}</div><div class="label">ECD Students</div></div>
+                <div class="icon green"><i class="bi bi-emoji-smile"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value">{{ primary_count }}</div><div class="label">Primary Students</div></div>
+                <div class="icon blue"><i class="bi bi-book"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value">{{ secondary_count }}</div><div class="label">Secondary Students</div></div>
+                <div class="icon purple"><i class="bi bi-mortarboard"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value text-warning">{{ pending_reports }}</div><div class="label">Pending Reports</div></div>
+                <div class="icon red"><i class="bi bi-clock-history"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><div class="value text-success">{{ published_reports }}</div><div class="label">Published Reports</div></div>
+                <div class="icon green"><i class="bi bi-check-circle"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-bar-chart me-2"></i>Students by Education Level</div>
+            <div class="card-body">
+                <canvas id="levelChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-clock me-2"></i>Recent Reports</div>
+            <div class="card-body">
+                {% if recent_reports %}
+                {% for report in recent_reports %}
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <div>
+                        <div class="fw-semibold">{{ report.student.first_name }} {{ report.student.last_name }}</div>
+                        <small class="text-muted">{{ report.academic_term }} {{ report.academic_year }}</small>
+                    </div>
+                    <span class="badge {% if report.status == 'published' %}bg-success{% elif report.status == 'approved' %}bg-primary{% elif report.status == 'submitted' %}bg-warning{% else %}bg-secondary{% endif %}">{{ report.status|title }}</span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center py-3">No reports yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const ctx = document.getElementById('levelChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['ECD', 'Primary', 'Secondary'],
+        datasets: [{
+            label: 'Students',
+            data: [{{ ecd_count }}, {{ primary_count }}, {{ secondary_count }}],
+            backgroundColor: ['#27ae60', '#1B2A4A', '#C41E3A'],
+            borderRadius: 8
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+});
+</script>
+{% endblock %}

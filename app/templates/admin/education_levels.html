@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Education Levels - School Report System{% endblock %}
+{% block content %}
+<div class="page-header-mobile">
+    <h4 class="mb-0">Education Levels</h4>
+    <div class="header-actions">
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addLevelModal">
+            <i class="bi bi-plus-circle"></i> Add Level
+        </button>
+    </div>
+</div>
+<div class="table-container">
+    <div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th>Order</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Grades</th>
+                <th>Status</th>
+                <th class="text-end">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for level in education_levels %}
+            <tr>
+                <td>{{ level.display_order }}</td>
+                <td><strong>{{ level.name }}</strong></td>
+                <td>{{ level.description or 'N/A' }}</td>
+                <td><span class="badge bg-primary">{{ level.grades|length }}</span></td>
+                <td><span class="badge {% if level.is_active %}bg-success{% else %}bg-secondary{% endif %}">{{ 'Active' if level.is_active else 'Inactive' }}</span></td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editLevelModal{{ level.id }}"><i class="bi bi-pencil"></i></button>
+                    <form method="POST" action="{{ url_for('admin.delete_education_level', id=level.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Are you sure?"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            <div class="modal fade" id="editLevelModal{{ level.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="POST" action="{{ url_for('admin.edit_education_level', id=level.id) }}">
+                            <div class="modal-header"><h5 class="modal-title">Edit Education Level</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                            <div class="modal-body">
+                                <div class="row g-3">
+                                    <div class="col-6"><label class="form-label">Name</label><input type="text" class="form-control" name="name" value="{{ level.name }}" required></div>
+                                    <div class="col-6"><label class="form-label">Display Order</label><input type="number" class="form-control" name="display_order" value="{{ level.display_order }}"></div>
+                                    <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2">{{ level.description or '' }}</textarea></div>
+                                </div>
+                            </div>
+                            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+<div class="modal fade" id="addLevelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.add_education_level') }}">
+                <div class="modal-header"><h5 class="modal-title">Add Education Level</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-6"><label class="form-label">Name</label><input type="text" class="form-control" name="name" required placeholder="e.g., ECD"></div>
+                        <div class="col-6"><label class="form-label">Display Order</label><input type="number" class="form-control" name="display_order" value="0"></div>
+                        <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2"></textarea></div>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Add</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

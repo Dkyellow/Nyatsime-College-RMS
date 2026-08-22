@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Report for {{ student.first_name }} - School Report System{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0">Report Card: {{ student.first_name }} {{ student.last_name }}</h4>
+        <span class="text-muted">
+            {% if grade %}<span class="badge bg-info me-1">{{ grade.education_level.name }}</span>{{ grade.name }} - {% endif %}
+            {{ class_obj.name }} | {{ report.academic_term }} {{ report.academic_year }}
+        </span>
+    </div>
+    <a href="{{ url_for('teacher.view_class', class_id=class_obj.id) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-2"></i>Back</a>
+</div>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-pencil-square me-2"></i>{% if is_ecd %}Developmental Assessment{% else %}Enter Marks{% endif %}</span>
+                <span class="badge {% if report.status == 'published' %}bg-success{% elif report.status == 'approved' %}bg-info{% elif report.status == 'submitted' %}bg-warning{% else %}bg-secondary{% endif %}">{{ report.status|title }}</span>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('teacher.update_report', report_id=report.id) }}" id="marksForm">
+                    {% if is_ecd %}
+                    <table class="table">
+                        <thead><tr><th>Assessment Area</th><th width="150">Score</th><th width="100">Grade</th></tr></thead>
+                        <tbody>
+                            {% for mark in ecd_marks %}
+                            <tr>
+                                <td>{{ mark.assessment_field.name }}</td>
+                                <td><input type="number" class="form-control score-input" name="ecd_score_{{ mark.assessment_field_id }}" value="{{ mark.score }}" min="0" max="100" data-level="{{ education_level_id }}" {% if report.status in ['approved', 'published'] %}disabled{% endif %}></td>
+                                <td><span class="grade-display badge bg-success">{{ mark.grade }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <table class="table">
+                        <thead><tr><th>Subject</th><th width="150">Score (out of {{ subjects[0].max_score if subjects else 100 }})</th><th width="100">Grade</th></tr></thead>
+                        <tbody>
+                            {% for mark in report.marks %}
+                            <tr>
+                                <td>{{ mark.subject.name }}</td>
+                                <td><input type="number" class="form-control score-input" name="score_{{ mark.subject.id }}" value="{{ mark.score }}" min="0" max="{{ mark.max_score }}" data-level="{{ education_level_id }}" {% if report.status in ['approved', 'published'] %}disabled{% endif %}></td>
+                                <td><span class="grade-display badge bg-primary">{{ mark.grade }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label">Teacher's Comment</label>
+                        <textarea class="form-control" name="teacher_comment" rows="3" {% if report.status in ['approved', 'published'] %}disabled{% endif %}>{{ report.teacher_comment or '' }}</textarea>
+                    </div>
+                    {% if report.status not in ['approved', 'published'] %}
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-2"></i>Save Changes</button>
+                    </div>
+                    {% endif %}
+                </form>
+                {% if report.status in ['approved', 'published'] %}
+                <div class="alert alert-info mb-0"><i class="bi bi-info-circle me-2"></i>This report has been {{ report.status }} and cannot be edited.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-person me-2"></i>Student Information</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><td class="text-muted">Name:</td><td>{{ student.first_name }} {{ student.last_name }}</td></tr>
+                    <tr><td class="text-muted">Admission No:</td><td>{{ student.admission_number }}</td></tr>
+                    <tr><td class="text-muted">Class:</td><td>{{ class_obj.name }}</td></tr>
+                    <tr><td class="text-muted">Gender:</td><td>{{ student.gender or 'N/A' }}</td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-calculator me-2"></i>Report Summary</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><td class="text-muted">Total:</td><td><strong>{{ report.total_marks }}</strong></td></tr>
+                    <tr><td class="text-muted">Average:</td><td><strong>{{ "%.1f"|format(report.average) }}</strong></td></tr>
+                    <tr><td class="text-muted">Grade:</td><td><span class="badge bg-primary">{{ report.overall_grade }}</span></td></tr>
+                    <tr><td class="text-muted">Position:</td><td><strong>{{ report.position or 'N/A' }}</strong></td></tr>
+                    {% if report.grade_position %}<tr><td class="text-muted">Grade Position:</td><td><strong>{{ report.grade_position }}</strong></td></tr>{% endif %}
+                </table>
+            </div>
+        </div>
+        {% if report.status not in ['approved', 'published'] %}
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('teacher.submit_report', report_id=report.id) }}" id="submitForm">
+                    <input type="hidden" name="teacher_comment" value="">
+                    <button type="submit" class="btn btn-success w-100" data-confirm="Submit this report? It cannot be edited after submission."><i class="bi bi-send me-2"></i>Submit Report</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const gradingScale = {{ grading_scale|tojson }};
+    function calculateGrade(score, levelId) {
+        if (gradingScale && gradingScale.length > 0) {
+            for (let s of gradingScale) {
+                if (score >= s.min_score && score <= s.max_score) return s.grade_letter;
+            }
+        }
+        if (score >= 90) return 'A+'; if (score >= 80) return 'A'; if (score >= 70) return 'B+';
+        if (score >= 60) return 'B'; if (score >= 50) return 'C+'; if (score >= 40) return 'C';
+        if (score >= 30) return 'D'; return 'F';
+    }
+    document.querySelectorAll('.score-input').forEach(function(input) {
+        input.addEventListener('input', function() {
+            const score = parseFloat(this.value) || 0;
+            const gradeDisplay = this.closest('tr').querySelector('.grade-display');
+            gradeDisplay.textContent = calculateGrade(score, this.dataset.level);
+        });
+    });
+    document.getElementById('submitForm')?.addEventListener('submit', function(e) {
+        const comment = document.querySelector('textarea[name="teacher_comment"]').value;
+        this.querySelector('input[name="teacher_comment"]').value = comment;
+    });
+});
+</script>
+{% endblock %}

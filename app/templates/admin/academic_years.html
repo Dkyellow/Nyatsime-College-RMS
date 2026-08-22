@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Academic Years - School Report System{% endblock %}
+{% block content %}
+<div class="page-header-mobile">
+    <h4 class="mb-0">Academic Years & Terms</h4>
+    <div class="header-actions">
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addYearModal"><i class="bi bi-plus-circle"></i> Add Year</button>
+    </div>
+</div>
+<div class="row g-4">
+    {% for year in academic_years %}
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="card-title mb-0">{{ year.name }}</h5>
+                        {% if year.is_current %}<span class="badge bg-success mt-1">Current Year</span>{% endif %}
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-link" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                        <ul class="dropdown-menu">
+                            {% if not year.is_current %}
+                            <li><form method="POST" action="{{ url_for('admin.set_current_year', id=year.id) }}"><button type="submit" class="dropdown-item"><i class="bi bi-check-circle me-2"></i>Set as Current</button></form></li>
+                            {% endif %}
+                            <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editYearModal{{ year.id }}"><i class="bi bi-pencil me-2"></i>Edit</button></li>
+                            <li><form method="POST" action="{{ url_for('admin.delete_academic_year', id=year.id) }}"><button type="submit" class="dropdown-item text-danger" data-confirm="Are you sure?"><i class="bi bi-trash me-2"></i>Delete</button></form></li>
+                        </ul>
+                    </div>
+                </div>
+                <h6>Terms:</h6>
+                {% if year.terms %}
+                <ul class="list-group list-group-flush mb-3">
+                    {% for term in year.terms %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        {{ term.name }}
+                        <form method="POST" action="{{ url_for('admin.delete_academic_term', id=term.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete this term?"><i class="bi bi-x"></i></button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted small">No terms added yet.</p>
+                {% endif %}
+                <form method="POST" action="{{ url_for('admin.add_academic_term', year_id=year.id) }}" class="input-group input-group-sm">
+                    <input type="text" class="form-control" name="name" placeholder="e.g., Term 1" required>
+                    <input type="hidden" name="display_order" value="{{ year.terms|length + 1 }}">
+                    <button type="submit" class="btn btn-outline-primary"><i class="bi bi-plus"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="editYearModal{{ year.id }}" tabindex="-1">
+        <div class="modal-dialog"><div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.edit_academic_year', id=year.id) }}">
+                <div class="modal-header"><h5 class="modal-title">Edit Academic Year</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body"><label class="form-label">Year Name</label><input type="text" class="form-control" name="name" value="{{ year.name }}" required></div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+            </form>
+        </div></div>
+    </div>
+    {% endfor %}
+</div>
+<div class="modal fade" id="addYearModal" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+        <form method="POST" action="{{ url_for('admin.add_academic_year') }}">
+            <div class="modal-header"><h5 class="modal-title">Add Academic Year</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body"><label class="form-label">Year Name</label><input type="text" class="form-control" name="name" required placeholder="e.g., 2025/2026"></div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Add</button></div>
+        </form>
+    </div></div>
+</div>
+{% endblock %}
