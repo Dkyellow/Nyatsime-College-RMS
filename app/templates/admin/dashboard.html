@@ -91,7 +91,7 @@
         <div class="card-panel h-100">
             <div class="panel-head d-flex justify-content-between align-items-center">
                 <h6 class="panel-title"><i class="bi bi-calendar-event me-2"></i>Upcoming Academic Events</h6>
-                <a href="{{ url_for('admin.academic_years') }}" class="link-more">Manage</a>
+                <a href="{{ url_for('admin.academic_calendar') }}" class="link-more">Manage</a>
             </div>
             {% if current_year %}
             <p class="text-muted small mb-2">Current year: <strong>{{ current_year.name }}</strong></p>

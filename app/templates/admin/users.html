@@ -7,13 +7,13 @@
 <div class="page-head">
     <div>
         <h4 class="page-title">Users &amp; Roles</h4>
-        <p class="page-sub">All system accounts: administrators, teachers and parents.</p>
+        <p class="page-sub">All system accounts: administrators, teachers and students.</p>
     </div>
 </div>
 
 <div class="status-tabs">
     <a href="{{ url_for('admin.users') }}" class="status-tab {% if not selected_role %}active{% endif %}">All ({{ users|length }})</a>
-    {% for role_name, icon in [('admin', 'shield-lock'), ('teacher', 'person-workspace'), ('parent', 'people')] %}
+    {% for role_name, icon in [('admin', 'shield-lock'), ('teacher', 'person-workspace'), ('student', 'mortarboard')] %}
     <a href="{{ url_for('admin.users', role=role_name) }}" class="status-tab {% if selected_role == role_name %}active{% endif %}">
         {{ role_name|title }}s
     </a>

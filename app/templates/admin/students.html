@@ -68,7 +68,6 @@
                     <td>{{ student.gender or '-' }}</td>
                     <td>{{ student.class_obj.grade.name if student.class_obj and student.class_obj.grade else '-' }}</td>
                     <td>{{ student.class_obj.name if student.class_obj else '-' }}</td>
-                    <td>{{ student.parent.first_name }} {{ student.parent.last_name if student.parent else '-' }}</td>
                     <td class="text-end action-cell">
                         <a href="{{ url_for('admin.student_profile', id=student.id) }}" class="btn-icon" title="View profile"><i class="bi bi-eye"></i></a>
                         <button class="btn-icon" data-bs-toggle="modal" data-bs-target="#editStudentModal{{ student.id }}" title="Edit"><i class="bi bi-pencil"></i></button>

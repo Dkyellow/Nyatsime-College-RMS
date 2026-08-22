@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Student Dashboard - {{ SCHOOL_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-1">Welcome, {{ student.first_name }}!</h4>
+        <p class="text-muted mb-0">{{ student.class_obj.name if student.class_obj else 'No class assigned' }} &middot; {{ student.admission_number }}</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-collection text-primary fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Class</div>
+                        <div class="fw-semibold">{{ student.class_obj.name if student.class_obj else 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-people text-success fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Class Size</div>
+                        <div class="fw-semibold">{{ class_size }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-file-earmark-text text-warning fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Reports</div>
+                        <div class="fw-semibold">{{ reports|length }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-bar-chart text-info fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Latest Average</div>
+                        <div class="fw-semibold">{{ "%.1f"|format(latest.average) if latest else 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if latest %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Latest Published Report</h6>
+    </div>
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h5 class="mb-1">{{ latest.academic_term }} &middot; {{ latest.academic_year }}</h5>
+                <p class="text-muted mb-2">{{ latest.class_obj.name if latest.class_obj else '' }}</p>
+                <div class="d-flex gap-3">
+                    <span class="badge bg-primary bg-opacity-10 text-primary">Average: {{ "%.1f"|format(latest.average) }}</span>
+                    <span class="badge bg-{{ 'success' if latest.overall_grade in ['A','B'] else 'warning' if latest.overall_grade in ['C','D'] else 'danger' }} bg-opacity-10 text-{{ 'success' if latest.overall_grade in ['A','B'] else 'warning' if latest.overall_grade in ['C','D'] else 'danger' }}">
+                        Grade: {{ latest.overall_grade }}
+                    </span>
+                    {% if latest.position %}
+                    <span class="badge bg-info bg-opacity-10 text-info">Position: {{ latest.position }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                <a href="{{ url_for('student.view_report', report_id=latest.id) }}" class="btn btn-primary btn-sm me-2">
+                    <i class="bi bi-eye me-1"></i>View
+                </a>
+                <a href="{{ url_for('student.download_report', report_id=latest.id) }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-download me-1"></i>PDF
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if reports %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-file-earmark-bar-graph me-2"></i>Recent Reports</h6>
+        <a href="{{ url_for('student.results') }}" class="btn btn-sm btn-outline-primary">View All</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Term</th>
+                        <th>Year</th>
+                        <th>Average</th>
+                        <th>Grade</th>
+                        <th>Position</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports[:5] %}
+                    <tr>
+                        <td>{{ report.academic_term }}</td>
+                        <td>{{ report.academic_year }}</td>
+                        <td>{{ "%.1f"|format(report.average) }}</td>
+                        <td><span class="badge bg-{{ 'success' if report.overall_grade in ['A','B'] else 'warning' if report.overall_grade in ['C','D'] else 'danger' }}">{{ report.overall_grade }}</span></td>
+                        <td>{{ report.position or '-' }}</td>
+                        <td><span class="badge bg-{{ 'success' if report.status == 'published' else 'secondary' }}">{{ report.status|title }}</span></td>
+                        <td>
+                            <a href="{{ url_for('student.view_report', report_id=report.id) }}" class="btn btn-sm btn-outline-primary py-0">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-inbox text-muted fs-1 mb-3"></i>
+        <h5 class="text-muted">No Reports Yet</h5>
+        <p class="text-muted">Your report cards will appear here once published by your teachers.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

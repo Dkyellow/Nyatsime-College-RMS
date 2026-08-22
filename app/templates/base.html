@@ -27,7 +27,7 @@
             <ul class="sidebar-nav">
                 <li class="sidebar-section"><span>Main</span></li>
                 <li class="{% if request.endpoint and 'dashboard' in request.endpoint %}active{% endif %}">
-                    <a href="{% if current_user.role == 'admin' %}{{ url_for('admin.dashboard') }}{% elif current_user.role == 'teacher' %}{{ url_for('teacher.dashboard') }}{% else %}{{ url_for('parent.dashboard') }}{% endif %}">
+                    <a href="{% if current_user.role == 'admin' %}{{ url_for('admin.dashboard') }}{% elif current_user.role == 'teacher' %}{{ url_for('teacher.dashboard') }}{% else %}{{ url_for('student.dashboard') }}{% endif %}">
                         <i class="bi bi-grid-1x2"></i><span class="nav-label">Dashboard</span>
                     </a>
                 </li>
@@ -40,20 +40,14 @@
                 <li class="{% if request.endpoint == 'admin.teachers' %}active{% endif %}">
                     <a href="{{ url_for('admin.teachers') }}"><i class="bi bi-person-workspace"></i><span class="nav-label">Teachers</span></a>
                 </li>
-                <li class="{% if request.endpoint == 'admin.parents' %}active{% endif %}">
-                    <a href="{{ url_for('admin.parents') }}"><i class="bi bi-people"></i><span class="nav-label">Parents &amp; Guardians</span></a>
-                </li>
                 <li class="{% if request.endpoint == 'admin.classes' %}active{% endif %}">
                     <a href="{{ url_for('admin.classes') }}"><i class="bi bi-collection"></i><span class="nav-label">Classes &amp; Streams</span></a>
                 </li>
                 <li class="{% if request.endpoint == 'admin.subjects' %}active{% endif %}">
                     <a href="{{ url_for('admin.subjects') }}"><i class="bi bi-book"></i><span class="nav-label">Subjects</span></a>
                 </li>
-                <li class="{% if request.endpoint == 'admin.grades' %}active{% endif %}">
-                    <a href="{{ url_for('admin.grades') }}"><i class="bi bi-stack"></i><span class="nav-label">Forms &amp; Levels</span></a>
-                </li>
-                <li class="{% if request.endpoint == 'admin.academic_years' %}active{% endif %}">
-                    <a href="{{ url_for('admin.academic_years') }}"><i class="bi bi-calendar3"></i><span class="nav-label">Academic Terms</span></a>
+                <li class="{% if request.endpoint == 'admin.academic_calendar' %}active{% endif %}">
+                    <a href="{{ url_for('admin.academic_calendar') }}"><i class="bi bi-calendar3"></i><span class="nav-label">Academic Calendar</span></a>
                 </li>
 
                 <li class="sidebar-section"><span>Results &amp; Reports</span></li>
@@ -63,10 +57,6 @@
                 <li class="{% if request.endpoint == 'admin.reports' %}active{% endif %}">
                     <a href="{{ url_for('admin.reports') }}"><i class="bi bi-file-earmark-bar-graph"></i><span class="nav-label">Report Cards</span></a>
                 </li>
-                <li class="{% if request.endpoint == 'admin.grading_scales' %}active{% endif %}">
-                    <a href="{{ url_for('admin.grading_scales') }}"><i class="bi bi-award"></i><span class="nav-label">Grading Scale</span></a>
-                </li>
-
                 <li class="sidebar-section"><span>Administration</span></li>
                 <li class="{% if request.endpoint == 'admin.users' %}active{% endif %}">
                     <a href="{{ url_for('admin.users') }}"><i class="bi bi-shield-lock"></i><span class="nav-label">Users &amp; Roles</span></a>
@@ -83,13 +73,14 @@
                 </li>
                 {% endfor %}
 
-                {% elif current_user.role == 'parent' %}
-                <li class="sidebar-section"><span>My Children</span></li>
-                {% for child in current_user.parent_profile.children %}
-                <li class="{% if request.view_args and request.view_args.get('student_id') == child.id %}active{% endif %}">
-                    <a href="{{ url_for('parent.view_report', student_id=child.id) }}"><i class="bi bi-person"></i><span class="nav-label">{{ child.first_name }} {{ child.last_name }}</span></a>
+                {% elif current_user.role == 'student' %}
+                <li class="sidebar-section"><span>Student Portal</span></li>
+                <li class="{% if request.endpoint == 'student.dashboard' %}active{% endif %}">
+                    <a href="{{ url_for('student.dashboard') }}"><i class="bi bi-house"></i><span class="nav-label">Dashboard</span></a>
                 </li>
-                {% endfor %}
+                <li class="{% if request.endpoint == 'student.results' %}active{% endif %}">
+                    <a href="{{ url_for('student.results') }}"><i class="bi bi-bar-chart"></i><span class="nav-label">My Results</span></a>
+                </li>
                 {% endif %}
             </ul>
 
