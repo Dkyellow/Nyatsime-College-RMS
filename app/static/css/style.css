@@ -53,12 +53,21 @@ a { text-decoration: none; }
 .login-hero {
     background:
         radial-gradient(1200px 500px at -10% -20%, rgba(240, 180, 41, .16), transparent 55%),
-        linear-gradient(160deg, var(--ny-navy-2) 0%, var(--ny-navy) 70%);
+        linear-gradient(160deg, var(--ny-blue) 0%, #025a8e 70%);
     align-items: center;
     justify-content: center;
     padding: 48px;
     position: relative;
     overflow: hidden;
+}
+.hero-bg-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: .18;
+    z-index: 0;
 }
 .login-hero::after {
     content: "";
@@ -136,7 +145,7 @@ a { text-decoration: none; }
 /* Sidebar */
 .sidebar {
     width: var(--sidebar-w);
-    background: linear-gradient(180deg, var(--ny-navy) 0%, #0B1530 100%);
+    background: linear-gradient(180deg, var(--ny-blue) 0%, #025a8e 100%);
     position: fixed;
     inset-block: 0;
     left: 0;

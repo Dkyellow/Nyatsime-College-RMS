@@ -10,10 +10,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 20,
-        'pool_recycle': 300,
         'pool_pre_ping': True,
-        'max_overflow': 10,
     }
 
     REPORT_CACHE_DIR = os.path.join(basedir, 'cached_reports')
