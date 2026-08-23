@@ -1,4 +1,4 @@
-import os
+﻿import os
 import hashlib
 from io import BytesIO
 from xhtml2pdf import pisa
@@ -17,33 +17,33 @@ REPORT_CARD_HTML = """
         body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1F2937; }
         .header { text-align: center; margin-bottom: 4px; }
         .crest { width: 64px; height: 70px; }
-        .school-name { font-size: 20pt; font-weight: bold; color: #16295F; letter-spacing: 2px; margin-top: 4px; }
+        .school-name { font-size: 20pt; font-weight: bold; color: #0370b1; letter-spacing: 2px; margin-top: 4px; }
         .school-tag { font-size: 8pt; color: #6B7280; letter-spacing: 3px; text-transform: uppercase; }
         .motto { font-style: italic; color: #374151; font-size: 9pt; margin-top: 2px; }
-        .report-title { background: #16295F; color: #F7C948; text-align: center; font-size: 11pt;
+        .report-title { background: #0370b1; color: #F7C948; text-align: center; font-size: 11pt;
                         font-weight: bold; padding: 5px 0; margin: 12px -2mm 0 -2mm; letter-spacing: 2px; }
         .student-info { width: 100%; border-collapse: collapse; margin-top: 12px; }
         .student-info td { padding: 4px 6px; font-size: 9.5pt; border-bottom: 1px solid #E5EAF1; }
-        .label { font-weight: bold; color: #16295F; width: 16%; }
-        .section-title { font-size: 10.5pt; font-weight: bold; margin: 14px 0 6px 0; color: #16295F;
+        .label { font-weight: bold; color: #0370b1; width: 16%; }
+        .section-title { font-size: 10.5pt; font-weight: bold; margin: 14px 0 6px 0; color: #0370b1;
                          border-bottom: 2px solid #F7C948; padding-bottom: 3px; }
         .marks-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-        .marks-table th { background: #16295F; color: white; padding: 7px 8px; text-align: left; font-size: 9pt; }
+        .marks-table th { background: #0370b1; color: white; padding: 7px 8px; text-align: left; font-size: 9pt; }
         .marks-table th.num { text-align: center; }
         .marks-table td { padding: 6px 8px; border-bottom: 1px solid #E5EAF1; font-size: 9pt; }
         .marks-table td.num { text-align: center; }
         .marks-table tr:nth-child(even) { background: #F6F8FB; }
-        .grade-badge { color: #16295F; font-weight: bold; padding: 1px 8px; border: 1.5px solid #F7C948;
+        .grade-badge { color: #0370b1; font-weight: bold; padding: 1px 8px; border: 1.5px solid #F7C948;
                        background: #FEF7E0; border-radius: 4px; font-size: 8pt; }
         .summary-table { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 10px 0 4px 0; }
         .summary-table td { width: 25%; text-align: center; padding: 9px 4px; background: #F6F8FB;
                             border: 1px solid #E5EAF1; border-top: 3px solid #F7C948; border-radius: 4px; }
-        .summary-table .value { font-size: 15pt; font-weight: bold; color: #16295F; }
+        .summary-table .value { font-size: 15pt; font-weight: bold; color: #0370b1; }
         .summary-table .lbl { font-size: 7.5pt; color: #6B7280; text-transform: uppercase; letter-spacing: 1px; }
         .comments { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
         .comments td { vertical-align: top; width: 50%; padding-right: 8px; }
         .comment-box { border: 1px solid #E5EAF1; border-radius: 4px; padding: 8px 10px; min-height: 52px; }
-        .comment-box .title { font-weight: bold; color: #16295F; font-size: 8.5pt; margin-bottom: 3px;
+        .comment-box .title { font-weight: bold; color: #0370b1; font-size: 8.5pt; margin-bottom: 3px;
                               text-transform: uppercase; letter-spacing: 0.5px; }
         .comment-box .text { font-size: 9pt; color: #374151; }
         .signature-section { width: 100%; margin-top: 22px; }

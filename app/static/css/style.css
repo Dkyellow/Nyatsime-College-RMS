@@ -5,8 +5,8 @@
 
 :root {
     --ny-navy: #0E1B3A;          /* sidebar / dark neutral */
-    --ny-navy-2: #16295F;        /* deep royal blue */
-    --ny-blue: #1E3A8A;          /* primary blue */
+    --ny-navy-2: #0370b1;        /* primary blue */
+    --ny-blue: #0370b1;          /* primary blue */
     --ny-blue-soft: #EEF2FB;     /* soft blue tint */
     --ny-gold: #F0B429;          /* academic gold */
     --ny-gold-soft: #FEF7E0;

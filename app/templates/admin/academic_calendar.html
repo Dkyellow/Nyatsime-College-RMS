@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Academic Calendar - {{ SCHOOL_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="page-title mb-1">Academic Calendar</h4>
+        <p class="page-sub mb-0">Manage academic years and term dates</p>
+    </div>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#prepareYearModal">
+        <i class="bi bi-plus-circle me-1"></i>New Academic Year
+    </button>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <span class="text-muted small fw-semibold">Academic Year:</span>
+            {% for y in years %}
+            <a href="{{ url_for('admin.academic_calendar', year=y) }}"
+               class="btn btn-sm {% if selected_year == y %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                {{ y }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <form method="POST" action="{{ url_for('admin.save_academic_calendar', year_id=year.id) }}">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Term Dates for {{ year.name }}</h6>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check-lg me-1"></i>Save Changes
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% for term in terms %}
+                    <div class="row g-3 mb-4 align-items-center {% if not loop.last %}border-bottom pb-4{% endif %}">
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-3">
+                                    <i class="bi bi-calendar-event text-primary"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">{{ term.name }}</div>
+                                    <small class="text-muted">Term {{ loop.index }} of 3</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Start Date</label>
+                            <input type="date" class="form-control" name="term_{{ term.id }}_start"
+                                   value="{{ term.start_date.isoformat() if term.start_date else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">End Date</label>
+                            <input type="date" class="form-control" name="term_{{ term.id }}_end"
+                                   value="{{ term.end_date.isoformat() if term.end_date else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            {% if term.start_date and term.end_date %}
+                                {% set days = (term.end_date - term.start_date).days + 1 %}
+                                <span class="badge bg-success bg-opacity-10 text-success">
+                                    <i class="bi bi-clock me-1"></i>{{ days }} days
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning bg-opacity-10 text-warning">Dates not set</span>
+                            {% endif %}
+
+                            {% if current_term and current_term.id == term.id %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary ms-1">
+                                    <i class="bi bi-circle-fill me-1" style="font-size:0.5rem"></i>Current
+                                </span>
+                            {% elif term.end_date and term.end_date < today %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary ms-1">Ended</span>
+                            {% elif term.start_date and term.start_date > today %}
+                                <span class="badge bg-info bg-opacity-10 text-info ms-1">Upcoming</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>How It Works</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="d-flex mb-3">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <span>Terms are fixed: <strong>Term 1</strong> (Jan-Mar), <strong>Term 2</strong> (May-Jul), <strong>Term 3</strong> (Sep-Nov)</span>
+                    </li>
+                    <li class="d-flex mb-3">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <span>The <strong>current term</strong> is detected automatically from today's date</span>
+                    </li>
+                    <li class="d-flex mb-3">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <span>Adjust start/end dates to match the school's actual schedule</span>
+                    </li>
+                    <li class="d-flex">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <span>When no term is active, the system shows <strong>"School Holiday"</strong></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        {% if current_term %}
+        <div class="card border-0 shadow-sm border-start border-primary border-4">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Currently Active</div>
+                <h5 class="mb-1">{{ current_term.name }}, {{ year.name }}</h5>
+                {% if current_term.start_date and current_term.end_date %}
+                <p class="text-muted small mb-0">
+                    {{ current_term.start_date.strftime('%d %b') }} - {{ current_term.end_date.strftime('%d %b %Y') }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="card border-0 shadow-sm border-start border-warning border-4">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Status</div>
+                <h5 class="mb-0 text-warning">School Holiday</h5>
+                <p class="text-muted small mb-0">No term is currently active</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="prepareYearModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.prepare_year') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Prepare New Academic Year</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">Create a new academic year with default term dates. You can adjust the dates afterwards.</p>
+                    <label class="form-label">Academic Year</label>
+                    <input type="text" class="form-control" name="year_name" placeholder="e.g. 2027" required
+                           pattern="\d{4}" maxlength="4">
+                    <div class="form-text">Enter a single year (e.g. 2027, not 2026/2027)</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Year</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
