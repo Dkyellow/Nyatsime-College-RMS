@@ -159,9 +159,14 @@ def seed_database():
             return u in used_usernames or User.query.filter_by(username=u).first() is not None
 
         students = []
-        for first, last, adm, dob, gender, class_idx in student_data:
-            # Create user account with auto-generated username
-            uname = generate_username(first, last, username_exists)
+        for idx, (first, last, adm, dob, gender, class_idx) in enumerate(student_data):
+            # Create user account - first student gets "student1" for easy demo access
+            if idx == 0:
+                uname = 'student1'
+                while username_exists(uname):
+                    uname = f'student1{idx}'
+            else:
+                uname = generate_username(first, last, username_exists)
             used_usernames.add(uname)
             user = User(username=uname, email=f'{uname}@student.nyatsime.ac.zw', role='student')
             user.set_password('student123')
