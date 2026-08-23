@@ -19,11 +19,15 @@
     </div>
 
     <div class="login-panel">
+        <div class="login-hero-mobile d-lg-none">
+            <img src="{{ url_for('static', filename='img/img1.jpg') }}" alt="" class="hero-bg-img">
+            <div class="login-hero-mobile-inner">
+                <img src="{{ url_for('static', filename='img/nyatsime-crest.png') }}" alt="{{ SCHOOL_NAME }} Crest" class="hero-crest-mobile">
+            </div>
+        </div>
         <div class="login-card">
             <div class="login-brand">
-                <img src="{{ url_for('static', filename='img/nyatsime-crest.png') }}" alt="" class="login-crest d-lg-none">
-                <span class="brand-dot"></span>
-                <small>{{ SCHOOL_NAME }}</small>
+                
             </div>
             <h2>Welcome to Nyatsime College</h2>
             <p class="login-sub">Academic Records &amp; Report Management System</p>

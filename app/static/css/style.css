@@ -97,6 +97,28 @@ a { text-decoration: none; }
 .hero-divider { width: 56px; height: 3px; background: var(--ny-gold); border-radius: 2px; margin: 22px 0; }
 .hero-text { color: rgba(255,255,255,.72); font-size: .95rem; line-height: 1.75; }
 
+.login-hero-mobile {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: linear-gradient(160deg, var(--ny-blue) 0%, #025a8e 100%);
+}
+.login-hero-mobile .hero-bg-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: .25;
+}
+.login-hero-mobile-inner { position: relative; z-index: 1; text-align: center; }
+.hero-crest-mobile { width: 80px; height: auto; filter: drop-shadow(0 6px 16px rgba(0,0,0,.4)); }
+
 .login-panel {
     display: flex;
     flex-direction: column;
