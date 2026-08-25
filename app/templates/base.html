@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ SCHOOL_NAME }} - Academic Records{% endblock %}</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/nyatsime-crest.png') }}">
+    <link rel="icon" type="image/png" href="{{ SCHOOL_LOGO_URL }}">
     <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    {{ BRAND_CSS | safe }}
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -17,10 +18,10 @@
 
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
-                <img src="{{ url_for('static', filename='img/nyatsime-crest.png') }}" alt="{{ SCHOOL_NAME }} Crest" class="brand-crest">
+                <img src="{{ SCHOOL_LOGO_URL }}" alt="{{ SCHOOL_NAME }} Logo" class="brand-crest">
                 <span class="brand-text">
                     <strong>{{ SCHOOL_NAME }}</strong>
-                    <small>Secondary School</small>
+                    {% if SCHOOL_SHORT_NAME %}<small>{{ SCHOOL_SHORT_NAME }}</small>{% else %}<small>Academic Records</small>{% endif %}
                 </span>
             </div>
 
@@ -98,7 +99,7 @@
                     <i class="bi bi-layout-sidebar"></i>
                 </button>
                 <div class="top-title d-none d-md-block">
-                    {% block top_title %}<span class="school-chip"><img src="{{ url_for('static', filename='img/nyatsime-crest.svg') }}" alt=""> {{ SCHOOL_NAME }}</span>{% endblock %}
+                    {% block top_title %}<span class="school-chip"><img src="{{ SCHOOL_LOGO_URL }}" alt=""> {{ SCHOOL_NAME }}</span>{% endblock %}
                 </div>
                 <div class="ms-auto dropdown">
                     <button class="user-chip" data-bs-toggle="dropdown">

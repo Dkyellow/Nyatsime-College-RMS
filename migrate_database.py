@@ -1,4 +1,4 @@
-﻿"""Migrate the school reports database to Nyatsime College secondary-school-only system.
+"""Migrate the school reports database to a white-label secondary-school system.
 
 Changes applied:
   - Adds Student.user_id column if missing
@@ -9,6 +9,7 @@ Changes applied:
   - Drops grading_scales table if present
   - Ensures fixed secondary school forms exist
   - Seeds default subjects, grade-subject mappings, academic year/terms
+  - Seeds all SchoolSetting defaults (Nyatsime College) if not yet configured
 
 Run:  python migrate_database.py
 """
@@ -212,6 +213,40 @@ def seed_structure(app):
         db.session.commit()
 
 
+def seed_school_settings(app):
+    """Populate SchoolSetting with Nyatsime College defaults for any keys not yet set."""
+    defaults = {
+        'school_name':       'NYATSIME COLLEGE',
+        'school_short_name': 'Secondary School',
+        'school_motto':      'Knowledge | Integrity | Excellence',
+        'school_address':    'P.O. Box Nyatsime, Zimbabwe',
+        'school_city':       'Harare',
+        'school_country':    'Zimbabwe',
+        'school_phone':      '',
+        'school_email':      '',
+        'school_website':    '',
+        'primary_color':     '#0370b1',
+        'accent_color':      '#F0B429',
+        'report_footer':     '',
+        'logo_filename':     '',
+    }
+    with app.app_context():
+        changed = False
+        for key, value in defaults.items():
+            existing = SchoolSetting.get(key, None)
+            if existing is None or existing == '':
+                # Only set if completely absent or empty — never overwrite admin's choices
+                existing_row = db.session.get(SchoolSetting, key)
+                if existing_row is None:
+                    SchoolSetting.set(key, value)
+                    changed = True
+        if changed:
+            db.session.commit()
+            print('Seeded default school settings.')
+        else:
+            print('School settings already configured — skipped.')
+
+
 def main():
     print(f'Migrating database: {DB_PATH}')
     if not os.path.exists(DB_PATH):
@@ -226,6 +261,7 @@ def main():
 
     app = create_app()
     seed_structure(app)
+    seed_school_settings(app)
     print('Migration complete.')
 
 

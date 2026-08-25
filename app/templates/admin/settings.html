@@ -1,59 +1,332 @@
 {% extends "base.html" %}
 {% block title %}School Settings - {{ SCHOOL_NAME }}{% endblock %}
 {% block top_title %}
-<span class="school-chip"><img src="{{ url_for('static', filename='img/nyatsime-crest.svg') }}" alt=""> School Settings</span>
+<span class="school-chip"><img src="{{ SCHOOL_LOGO_URL }}" alt=""> School Settings</span>
 {% endblock %}
 {% block content %}
 <div class="page-head">
     <div>
         <h4 class="page-title">School Settings</h4>
-        <p class="page-sub">School profile details shown across the system, on login and printed report cards.</p>
+        <p class="page-sub">Configure your school's identity, branding, and contact details.</p>
     </div>
 </div>
 
-<div class="row g-3 g-lg-4">
-    <div class="col-lg-8">
-        <div class="card-panel">
-            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-building me-2"></i>School Profile</h6></div>
-            <form method="POST" action="{{ url_for('admin.settings') }}">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">School Name</label>
-                        <input type="text" class="form-control" name="school_name" value="{{ values['school_name'] or '' }}" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Motto</label>
-                        <input type="text" class="form-control" name="school_motto" value="{{ values['school_motto'] or '' }}">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">Address</label>
-                        <input type="text" class="form-control" name="school_address" value="{{ values['school_address'] or '' }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Phone</label>
-                        <input type="text" class="form-control" name="school_phone" value="{{ values['school_phone'] or '' }}" placeholder="+263 ...">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Email</label>
-                        <input type="email" class="form-control" name="school_email" value="{{ values['school_email'] or '' }}" placeholder="info@nyatsime.ac.zw">
-                    </div>
-                </div>
-                <div class="d-flex justify-content-end mt-4">
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Settings</button>
-                </div>
-            </form>
-        </div>
+<form method="POST" action="{{ url_for('admin.settings') }}" enctype="multipart/form-data" id="settingsForm">
+
+<!-- ── Section 1: School Information ─────────────────────────────────────── -->
+<div class="card-panel mb-4">
+    <div class="panel-head">
+        <h6 class="panel-title"><i class="bi bi-building me-2"></i>School Information</h6>
     </div>
-    <div class="col-lg-4">
-        <div class="card-panel text-center">
-            <div class="panel-head d-block text-start"><h6 class="panel-title"><i class="bi bi-patch-check me-2"></i>Brand Preview</h6></div>
-            <img src="{{ url_for('static', filename='img/nyatsime-crest.png') }}" alt="Nyatsime College Crest" class="settings-crest my-2">
-            <h5 class="mb-1">{{ values['school_name'] or 'NYATSIME COLLEGE' }}</h5>
-            <p class="text-muted small mb-3">{{ values['school_motto'] or '' }}</p>
-            <p class="small text-muted mb-0">
-                This crest and school name appear on the login screen, sidebar, printable report cards and PDF exports.
-            </p>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">School Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="school_name"
+                   value="{{ values.school_name or '' }}" required
+                   placeholder="e.g. NYATSIME COLLEGE" id="inp_school_name">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Short Name / Subtitle</label>
+            <input type="text" class="form-control" name="school_short_name"
+                   value="{{ values.school_short_name or '' }}"
+                   placeholder="e.g. Secondary School" id="inp_short_name">
+            <small class="text-muted">Shown below the school name in the sidebar.</small>
+        </div>
+        <div class="col-md-12">
+            <label class="form-label">School Motto</label>
+            <input type="text" class="form-control" name="school_motto"
+                   value="{{ values.school_motto or '' }}"
+                   placeholder="e.g. Knowledge | Integrity | Excellence" id="inp_motto">
+            <small class="text-muted">Use | to separate motto phrases on the login screen.</small>
+        </div>
+        <div class="col-md-8">
+            <label class="form-label">Address</label>
+            <input type="text" class="form-control" name="school_address"
+                   value="{{ values.school_address or '' }}"
+                   placeholder="Street address or P.O. Box">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">City / Town</label>
+            <input type="text" class="form-control" name="school_city"
+                   value="{{ values.school_city or '' }}"
+                   placeholder="e.g. Harare">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Country</label>
+            <input type="text" class="form-control" name="school_country"
+                   value="{{ values.school_country or '' }}"
+                   placeholder="e.g. Zimbabwe">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Telephone Number</label>
+            <input type="text" class="form-control" name="school_phone"
+                   value="{{ values.school_phone or '' }}"
+                   placeholder="+263 ...">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Email Address</label>
+            <input type="email" class="form-control" name="school_email"
+                   value="{{ values.school_email or '' }}"
+                   placeholder="info@school.ac.zw">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Website <span class="text-muted">(optional)</span></label>
+            <input type="url" class="form-control" name="school_website"
+                   value="{{ values.school_website or '' }}"
+                   placeholder="https://www.school.ac.zw">
+        </div>
+        <div class="col-md-12">
+            <label class="form-label">Report Footer Text <span class="text-muted">(optional)</span></label>
+            <textarea class="form-control" name="report_footer" rows="2"
+                      placeholder="Text printed at the bottom of generated PDF report cards.">{{ values.report_footer or '' }}</textarea>
         </div>
     </div>
 </div>
+
+<!-- ── Section 2: Branding ───────────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card-panel h-100">
+            <div class="panel-head">
+                <h6 class="panel-title"><i class="bi bi-palette me-2"></i>Branding</h6>
+            </div>
+
+            <!-- Logo Upload -->
+            <div class="mb-4">
+                <label class="form-label fw-semibold">School Logo / Crest</label>
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <img src="{{ SCHOOL_LOGO_URL }}" alt="Current Logo"
+                         class="logo-current" id="logoPreviewImg">
+                    <div class="flex-grow-1">
+                        <div class="logo-upload-zone" id="logoDropZone" onclick="document.getElementById('logoInput').click()">
+                            <i class="bi bi-cloud-arrow-up fs-3 text-muted"></i>
+                            <div class="fw-semibold mt-2">Click to upload a new logo</div>
+                            <small class="text-muted">PNG, JPG, SVG or WebP — max 2 MB</small>
+                        </div>
+                        <input type="file" name="logo_file" id="logoInput"
+                               accept=".png,.jpg,.jpeg,.svg,.webp" class="d-none">
+                        {% if values.logo_filename %}
+                        <div class="mt-2">
+                            <label class="form-check-label text-muted small">
+                                <input type="checkbox" name="remove_logo" value="1" class="form-check-input me-1">
+                                Remove current logo and use default crest
+                            </label>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colour Pickers -->
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Primary Brand Colour</label>
+                <div class="color-swatch-row">
+                    <input type="color" name="primary_color" id="primaryColorPicker"
+                           value="{{ values.primary_color or '#0370b1' }}">
+                    <div class="color-swatch-preview" id="primarySwatch"
+                         style="background:{{ values.primary_color or '#0370b1' }}"></div>
+                    <div>
+                        <div class="fw-semibold small" id="primaryColorHex">{{ values.primary_color or '#0370b1' }}</div>
+                        <div class="text-muted" style="font-size:.76rem">Sidebar, buttons, links, active nav</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Accent / Highlight Colour</label>
+                <div class="color-swatch-row">
+                    <input type="color" name="accent_color" id="accentColorPicker"
+                           value="{{ values.accent_color or '#F0B429' }}">
+                    <div class="color-swatch-preview" id="accentSwatch"
+                         style="background:{{ values.accent_color or '#F0B429' }}"></div>
+                    <div>
+                        <div class="fw-semibold small" id="accentColorHex">{{ values.accent_color or '#F0B429' }}</div>
+                        <div class="text-muted" style="font-size:.76rem">Active indicator, badges, report accents</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4">
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="bi bi-check-lg me-2"></i>Save All Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Preview Panel -->
+    <div class="col-lg-4">
+        <div class="card-panel">
+            <div class="panel-head">
+                <h6 class="panel-title"><i class="bi bi-eye me-2"></i>Live Brand Preview</h6>
+            </div>
+            <p class="text-muted small mb-3">Updates as you change colours and enter the school name.</p>
+
+            <!-- Mini sidebar preview -->
+            <div class="brand-preview-sidebar mb-3">
+                <div class="brand-preview-header" id="previewHeader">
+                    <img src="{{ SCHOOL_LOGO_URL }}" alt="" id="previewLogo">
+                    <div>
+                        <strong id="previewName">{{ values.school_name or 'SCHOOL NAME' }}</strong>
+                        <small id="previewShort">{{ values.school_short_name or 'Academic Records' }}</small>
+                    </div>
+                </div>
+                <div class="brand-preview-nav active" id="previewActiveNav">
+                    <i class="bi bi-grid-1x2 me-2"></i> Dashboard
+                </div>
+                <div class="brand-preview-nav">
+                    <i class="bi bi-mortarboard me-2"></i> Students
+                </div>
+                <div class="brand-preview-nav">
+                    <i class="bi bi-file-earmark-bar-graph me-2"></i> Reports
+                </div>
+                <div class="brand-preview-body">
+                    <!-- Sample button -->
+                    <div class="mb-2">
+                        <button type="button" class="btn btn-sm w-100" id="previewBtn">
+                            <i class="bi bi-plus me-1"></i> Sample Action
+                        </button>
+                    </div>
+                    <!-- Report header strip -->
+                    <div class="brand-preview-report-strip" id="previewReportStrip">
+                        TERM REPORT &mdash; SAMPLE
+                    </div>
+                </div>
+            </div>
+
+            <!-- Motto display -->
+            <div class="text-center mt-3 p-3 rounded" style="background:var(--bg); border:1px solid var(--border);">
+                <img src="{{ SCHOOL_LOGO_URL }}" alt="" id="previewMiniLogo"
+                     style="width:40px;height:40px;object-fit:contain;border-radius:4px;">
+                <div class="fw-bold mt-1 small" id="previewMottoName">{{ values.school_name or 'School Name' }}</div>
+                <div class="text-muted" style="font-size:.72rem;" id="previewMotto">{{ values.school_motto or 'School Motto' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const primaryPicker = document.getElementById('primaryColorPicker');
+    const accentPicker  = document.getElementById('accentColorPicker');
+    const primarySwatch = document.getElementById('primarySwatch');
+    const accentSwatch  = document.getElementById('accentSwatch');
+    const primaryHex    = document.getElementById('primaryColorHex');
+    const accentHex     = document.getElementById('accentColorHex');
+
+    const previewHeader     = document.getElementById('previewHeader');
+    const previewActiveNav  = document.getElementById('previewActiveNav');
+    const previewBtn        = document.getElementById('previewBtn');
+    const previewReportStrip = document.getElementById('previewReportStrip');
+
+    const previewName     = document.getElementById('previewName');
+    const previewShort    = document.getElementById('previewShort');
+    const previewMottoName = document.getElementById('previewMottoName');
+    const previewMotto    = document.getElementById('previewMotto');
+
+    const inpSchoolName = document.getElementById('inp_school_name');
+    const inpShortName  = document.getElementById('inp_short_name');
+    const inpMotto      = document.getElementById('inp_motto');
+
+    function hexToRgba(hex, alpha) {
+        const h = hex.replace('#','');
+        const r = parseInt(h.slice(0,2),16);
+        const g = parseInt(h.slice(2,4),16);
+        const b = parseInt(h.slice(4,6),16);
+        return `rgba(${r},${g},${b},${alpha})`;
+    }
+    function darken(hex, f=0.82) {
+        const h = hex.replace('#','');
+        const r = Math.max(0,Math.round(parseInt(h.slice(0,2),16)*f));
+        const g = Math.max(0,Math.round(parseInt(h.slice(2,4),16)*f));
+        const b = Math.max(0,Math.round(parseInt(h.slice(4,6),16)*f));
+        return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+    }
+
+    function applyColors(primary, accent) {
+        // Update CSS vars live on the page
+        document.documentElement.style.setProperty('--brand-primary', primary);
+        document.documentElement.style.setProperty('--brand-primary-dark', darken(primary));
+        document.documentElement.style.setProperty('--brand-primary-soft', hexToRgba(primary, 0.12));
+        document.documentElement.style.setProperty('--brand-accent', accent);
+        document.documentElement.style.setProperty('--brand-accent-soft', hexToRgba(accent, 0.15));
+
+        // Swatches + hex labels
+        primarySwatch.style.background = primary;
+        accentSwatch.style.background  = accent;
+        primaryHex.textContent = primary;
+        accentHex.textContent  = accent;
+
+        // Preview sidebar header
+        previewHeader.style.background = `linear-gradient(135deg, ${primary}, ${darken(primary)})`;
+        // Active nav item
+        previewActiveNav.style.background = hexToRgba(accent, 0.18);
+        previewActiveNav.style.color = '#fff';
+        previewActiveNav.style.borderLeft = `3px solid ${accent}`;
+        // Button
+        previewBtn.style.background = primary;
+        previewBtn.style.color = '#fff';
+        previewBtn.style.border = 'none';
+        // Report strip
+        previewReportStrip.style.background = primary;
+        previewReportStrip.style.borderBottom = `3px solid ${accent}`;
+    }
+
+    // Initial application
+    applyColors(primaryPicker.value, accentPicker.value);
+
+    primaryPicker.addEventListener('input', () => applyColors(primaryPicker.value, accentPicker.value));
+    accentPicker.addEventListener('input',  () => applyColors(primaryPicker.value, accentPicker.value));
+
+    // Live text preview
+    function updateTextPreview() {
+        previewName.textContent = inpSchoolName.value || 'SCHOOL NAME';
+        previewShort.textContent = inpShortName.value || 'Academic Records';
+        previewMottoName.textContent = inpSchoolName.value || 'School Name';
+        previewMotto.textContent = inpMotto.value || 'School Motto';
+    }
+    inpSchoolName.addEventListener('input', updateTextPreview);
+    inpShortName.addEventListener('input', updateTextPreview);
+    inpMotto.addEventListener('input', updateTextPreview);
+
+    // Logo preview on file select
+    const logoInput = document.getElementById('logoInput');
+    const logoPreviewImg = document.getElementById('logoPreviewImg');
+    const previewLogo = document.getElementById('previewLogo');
+    const previewMiniLogo = document.getElementById('previewMiniLogo');
+
+    logoInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                logoPreviewImg.src = e.target.result;
+                previewLogo.src    = e.target.result;
+                previewMiniLogo.src = e.target.result;
+            };
+            reader.readAsDataURL(this.files[0]);
+        }
+    });
+
+    // Drag-and-drop
+    const dropZone = document.getElementById('logoDropZone');
+    ['dragover','dragenter'].forEach(e => dropZone.addEventListener(e, ev => {
+        ev.preventDefault(); dropZone.style.borderColor = 'var(--brand-primary)';
+    }));
+    ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, () => {
+        dropZone.style.borderColor = '';
+    }));
+    dropZone.addEventListener('drop', function(ev) {
+        ev.preventDefault();
+        if (ev.dataTransfer.files.length) {
+            logoInput.files = ev.dataTransfer.files;
+            logoInput.dispatchEvent(new Event('change'));
+        }
+    });
+})();
+</script>
 {% endblock %}

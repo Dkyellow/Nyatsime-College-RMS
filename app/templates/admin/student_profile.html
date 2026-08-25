@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ student.first_name }} {{ student.last_name }} - {{ SCHOOL_NAME }}{% endblock %}
 {% block top_title %}
-<span class="school-chip"><img src="{{ url_for('static', filename='img/nyatsime-crest.svg') }}" alt=""> Student Profile</span>
+<span class="school-chip"><img src="{{ SCHOOL_LOGO_URL }}" alt=""> Student Profile</span>
 {% endblock %}
 {% block content %}
 <div class="page-head">

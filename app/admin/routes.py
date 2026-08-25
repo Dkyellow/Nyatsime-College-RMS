@@ -1,6 +1,8 @@
 import csv
+import os
+import uuid
 import io
-from flask import render_template, redirect, url_for, flash, request, Response, jsonify
+from flask import render_template, redirect, url_for, flash, request, Response, jsonify, current_app
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.admin import admin_bp
@@ -501,7 +503,7 @@ def export_students():
     return Response(
         output.getvalue(),
         mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=nyatsime_students_export.csv'}
+        headers={'Content-Disposition': 'attachment; filename=students_export.csv'}
     )
 
 
@@ -549,7 +551,7 @@ def export_reports():
     return Response(
         output.getvalue(),
         mimetype='text/csv',
-        headers={'Content-Disposition': f'attachment; filename=nyatsime_reports_{term}_{year}.csv'}
+        headers={'Content-Disposition': f'attachment; filename=reports_{term}_{year}.csv'}
     )
 
 
@@ -859,19 +861,72 @@ def publish_report(id):
 
 # ==================== SCHOOL SETTINGS ====================
 
+ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'svg', 'webp'}
+
+
+def _allowed_logo(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_LOGO_EXTENSIONS
+
+
 @admin_bp.route('/settings', methods=['GET', 'POST'])
 @admin_required
 def settings():
-    setting_keys = ['school_name', 'school_motto', 'school_address', 'school_phone', 'school_email']
+    # All text-based setting keys managed by this page
+    text_keys = [
+        'school_name', 'school_short_name', 'school_motto',
+        'school_address', 'school_city', 'school_country',
+        'school_phone', 'school_email', 'school_website',
+        'primary_color', 'accent_color', 'report_footer',
+    ]
+
     if request.method == 'POST':
-        for key in setting_keys:
+        # Save all text fields
+        for key in text_keys:
             SchoolSetting.set(key, request.form.get(key, '').strip())
+
+        # Handle logo removal
+        if request.form.get('remove_logo'):
+            old_filename = SchoolSetting.get('logo_filename', '')
+            if old_filename:
+                old_path = os.path.join(
+                    current_app.root_path, 'static', 'uploads', old_filename
+                )
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+            SchoolSetting.set('logo_filename', '')
+
+        # Handle logo upload
+        logo_file = request.files.get('logo_file')
+        if logo_file and logo_file.filename and _allowed_logo(logo_file.filename):
+            # Remove previous logo if one exists
+            old_filename = SchoolSetting.get('logo_filename', '')
+            if old_filename:
+                old_path = os.path.join(
+                    current_app.root_path, 'static', 'uploads', old_filename
+                )
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+
+            ext = logo_file.filename.rsplit('.', 1)[1].lower()
+            new_filename = f'school_logo_{uuid.uuid4().hex[:8]}.{ext}'
+            upload_dir = os.path.join(current_app.root_path, 'static', 'uploads')
+            os.makedirs(upload_dir, exist_ok=True)
+            logo_file.save(os.path.join(upload_dir, new_filename))
+            SchoolSetting.set('logo_filename', new_filename)
+        elif logo_file and logo_file.filename and not _allowed_logo(logo_file.filename):
+            flash('Unsupported logo format. Please use PNG, JPG, SVG or WebP.', 'danger')
+
         db.session.commit()
         invalidate_all_caches()
-        flash('School settings saved.', 'success')
+        flash('School settings saved successfully.', 'success')
         return redirect(url_for('admin.settings'))
 
-    values = {key: SchoolSetting.get(key) for key in setting_keys}
+    all_keys = text_keys + ['logo_filename']
+    values = {key: SchoolSetting.get(key) for key in all_keys}
     return render_template('settings.html', values=values)
 
 

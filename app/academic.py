@@ -1,4 +1,4 @@
-"""Nyatsime College academic configuration and helpers.
+"""Academic configuration and helpers for the school report management system.
 
 The school's academic structure is FIXED in code (secondary school only):
   - Forms: Form 1, Form 2, Form 3, Form 4, Lower 6, Upper 6

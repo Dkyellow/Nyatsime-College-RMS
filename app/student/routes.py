@@ -120,6 +120,6 @@ def download_report(report_id):
         pdf_content,
         mimetype='application/pdf',
         headers={
-            'Content-Disposition': f'attachment; filename=nyatsime_report_{student.admission_number}_{report.academic_term}_{report.academic_year}.pdf'
+            'Content-Disposition': f'attachment; filename=report_{student.admission_number}_{report.academic_term}_{report.academic_year}.pdf'
         }
     )

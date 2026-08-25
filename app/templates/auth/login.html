@@ -7,13 +7,19 @@
     <div class="login-hero d-none d-lg-flex">
         <img src="{{ url_for('static', filename='img/img1.jpg') }}" alt="" class="hero-bg-img">
         <div class="login-hero-inner">
-            <img src="{{ url_for('static', filename='img/nyatsime-crest.png') }}" alt="{{ SCHOOL_NAME }} Crest" class="hero-crest">
+            <img src="{{ SCHOOL_LOGO_URL }}" alt="{{ SCHOOL_NAME }} Logo" class="hero-crest">
             <h1 class="hero-title">{{ SCHOOL_NAME }}</h1>
-            <p class="hero-sub">Knowledge &bull; Integrity &bull; Excellence</p>
+            <p class="hero-sub">
+                {% if SCHOOL_MOTTO %}
+                    {% for part in SCHOOL_MOTTO.split('|') %}{{ part.strip() }}{% if not loop.last %} &bull; {% endif %}{% endfor %}
+                {% else %}
+                    Academic Excellence
+                {% endif %}
+            </p>
             <div class="hero-divider"></div>
             <p class="hero-text">
                 A modern academic records and report management platform built for
-                Zimbabwean secondary education &mdash; from Form 1 through Upper 6.
+                secondary education &mdash; from Form 1 through Upper 6.
             </p>
         </div>
     </div>
@@ -22,14 +28,14 @@
         <div class="login-hero-mobile d-lg-none">
             <img src="{{ url_for('static', filename='img/img1.jpg') }}" alt="" class="hero-bg-img">
             <div class="login-hero-mobile-inner">
-                <img src="{{ url_for('static', filename='img/nyatsime-crest.png') }}" alt="{{ SCHOOL_NAME }} Crest" class="hero-crest-mobile">
+                <img src="{{ SCHOOL_LOGO_URL }}" alt="{{ SCHOOL_NAME }} Logo" class="hero-crest-mobile">
             </div>
         </div>
         <div class="login-card">
             <div class="login-brand">
                  
             </div>
-            <h2>Welcome to Nyatsime College</h2>
+            <h2>Welcome to {{ SCHOOL_NAME }}</h2>
             <p class="login-sub">Academic Records &amp; Report Management System</p>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
