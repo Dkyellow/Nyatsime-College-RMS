@@ -9,7 +9,7 @@ from app.admin import admin_bp
 from app.models import (
     db, User, Admin, Teacher, Student, Class, Subject, Report, Mark,
     ClassTeacher, Grade, GradeSubject, AcademicYear,
-    AcademicTerm, SchoolSetting
+    AcademicTerm, SchoolSetting, SchoolLogo
 )
 from functools import wraps
 from app.services.pdf_service import invalidate_report_cache
@@ -862,6 +862,13 @@ def publish_report(id):
 # ==================== SCHOOL SETTINGS ====================
 
 ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'svg', 'webp'}
+CONTENT_TYPE_MAP = {
+    'png': 'image/png',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'svg': 'image/svg+xml',
+    'webp': 'image/webp',
+}
 
 
 def _allowed_logo(filename):
@@ -886,36 +893,17 @@ def settings():
 
         # Handle logo removal
         if request.form.get('remove_logo'):
-            old_filename = SchoolSetting.get('logo_filename', '')
-            if old_filename:
-                old_path = os.path.join(
-                    current_app.root_path, 'static', 'uploads', old_filename
-                )
-                try:
-                    os.remove(old_path)
-                except OSError:
-                    pass
+            SchoolLogo.query.delete()
             SchoolSetting.set('logo_filename', '')
 
         # Handle logo upload
         logo_file = request.files.get('logo_file')
         if logo_file and logo_file.filename and _allowed_logo(logo_file.filename):
-            # Remove previous logo if one exists
-            old_filename = SchoolSetting.get('logo_filename', '')
-            if old_filename:
-                old_path = os.path.join(
-                    current_app.root_path, 'static', 'uploads', old_filename
-                )
-                try:
-                    os.remove(old_path)
-                except OSError:
-                    pass
-
             ext = logo_file.filename.rsplit('.', 1)[1].lower()
             new_filename = f'school_logo_{uuid.uuid4().hex[:8]}.{ext}'
-            upload_dir = os.path.join(current_app.root_path, 'static', 'uploads')
-            os.makedirs(upload_dir, exist_ok=True)
-            logo_file.save(os.path.join(upload_dir, new_filename))
+            content_type = CONTENT_TYPE_MAP.get(ext, 'image/png')
+            logo_data = logo_file.read()
+            SchoolLogo.save_logo(new_filename, content_type, logo_data)
             SchoolSetting.set('logo_filename', new_filename)
         elif logo_file and logo_file.filename and not _allowed_logo(logo_file.filename):
             flash('Unsupported logo format. Please use PNG, JPG, SVG or WebP.', 'danger')
@@ -934,3 +922,10 @@ def invalidate_all_caches():
     ids = [r[0] for r in Report.query.with_entities(Report.id).all()]
     for rid in ids:
         invalidate_report_cache(rid)
+
+
+@admin_bp.route('/logo/<int:logo_id>')
+def serve_logo(logo_id):
+    """Serve school logo from the database."""
+    logo = SchoolLogo.query.get_or_404(logo_id)
+    return Response(logo.data, mimetype=logo.content_type)

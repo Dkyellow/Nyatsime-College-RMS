@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from flask import Flask
+from flask import Flask, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import Config
@@ -95,9 +95,10 @@ def create_app():
 </style>"""
 
         # ── School logo ──────────────────────────────────────────────────────
-        logo_filename = setting('logo_filename', '')
-        if logo_filename:
-            school_logo_url = f'/static/uploads/{logo_filename}'
+        from app.models import SchoolLogo
+        logo = SchoolLogo.get_current()
+        if logo:
+            school_logo_url = url_for('admin.serve_logo', logo_id=logo.id)
         else:
             school_logo_url = '/static/img/nyatsime-crest.png'
 

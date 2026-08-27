@@ -107,11 +107,16 @@ def view_class(class_id):
     reports = {r.student_id: r for r in Report.query.filter_by(
         class_id=class_id, academic_term=academic_term, academic_year=academic_year).all()}
 
+    # Get terms for the current year for the import modal
+    year_obj = AcademicYear.query.filter_by(name=academic_year).first()
+    terms = sorted(year_obj.terms, key=lambda t: t.display_order) if year_obj else []
+
     return render_template('teacher/view_class.html',
                            class_obj=class_obj, students=students, subjects=subjects,
                            reports=reports, academic_term=academic_term,
                            academic_year=academic_year, grade=grade,
-                           academic_years=years, default_term=default_term)
+                           academic_years=years, default_term=default_term,
+                           terms=terms)
 
 
 @teacher_bp.route('/class/<int:class_id>/subject-marks')
@@ -281,12 +286,27 @@ def submit_report(report_id):
                                 student_id=report.student_id, class_id=report.class_id,
                                 term=report.academic_term, year=report.academic_year))
 
-    report.teacher_comment = request.form.get('teacher_comment', '') or report.teacher_comment
+    # Save marks from form before submitting
+    for mark in report.marks:
+        score_key = f'score_{mark.subject_id}'
+        raw = request.form.get(score_key, '')
+        if raw == '':
+            continue
+        try:
+            score = float(raw)
+        except (ValueError, TypeError):
+            continue
+        max_score = mark.max_score or 100
+        score = max(0, min(score, max_score))
+        mark.score = score
+        mark.grade = calculate_grade((score / max_score) * 100 if max_score else 0)
 
-    total = sum(m.score for m in report.marks)
+    scores = [m.score for m in report.marks]
+    total = sum(scores)
     report.total_marks = total
-    report.average = total / len(report.marks) if report.marks else 0
+    report.average = total / len(scores) if scores else 0
     report.overall_grade = calculate_grade(report.average)
+    report.teacher_comment = request.form.get('teacher_comment', '') or report.teacher_comment
 
     report.status = 'submitted'
     report.submitted_at = datetime.utcnow()
@@ -333,6 +353,7 @@ def upload_marks(class_id):
         subjects = get_subjects_for_grade(grade.id) if grade else Subject.query.all()
         subject_map = {s.code.upper(): s.id for s in subjects}
         subject_map.update({s.name.upper(): s.id for s in subjects})
+        subject_map.update({f"{s.code.upper()} - {s.name.upper()}": s.id for s in subjects})
 
         count = 0
         for row in reader:
@@ -356,18 +377,23 @@ def upload_marks(class_id):
                 continue
 
             for key, value in row.items():
-                if key and key.strip().upper() in ['ADMISSION_NUMBER', 'STUDENT']:
+                if key and key.strip().upper() in ['ADMISSION_NUMBER', 'STUDENT', 'FIRST_NAME', 'LAST_NAME']:
                     continue
                 if key and value is not None:
                     subject_id = subject_map.get(key.strip().upper())
                     if subject_id:
+                        subj = Subject.query.get(subject_id)
+                        if not subj:
+                            continue
                         try:
                             score = float(value)
-                            score = max(0, min(100, score))
+                            max_score_val = subj.max_score or 100
+                            score = max(0, min(score, max_score_val))
                             mark = Mark.query.filter_by(report_id=report.id, subject_id=subject_id).first()
                             if mark:
                                 mark.score = score
-                                mark.grade = calculate_grade(score)
+                                pct = (score / max_score_val) * 100
+                                mark.grade = calculate_grade(pct)
                                 count += 1
                         except (ValueError, TypeError):
                             continue
@@ -387,6 +413,28 @@ def upload_marks(class_id):
         flash(f'Error uploading marks: {str(e)}', 'danger')
 
     return redirect(url_for('teacher.view_class', class_id=class_id, term=academic_term, year=academic_year))
+
+
+@teacher_bp.route('/download-template/<int:class_id>')
+@teacher_required
+def download_template(class_id):
+    class_obj = Class.query.get_or_404(class_id)
+    grade = class_obj.grade
+    subjects = get_subjects_for_grade(grade.id) if grade else Subject.query.all()
+    students = Student.query.filter_by(class_id=class_id, is_active=True).order_by(Student.admission_number).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    headers = ['admission_number', 'first_name', 'last_name'] + [f"{s.code} - {s.name}" for s in subjects]
+    writer.writerow(headers)
+    for student in students:
+        writer.writerow([student.admission_number, student.first_name, student.last_name] + [''] * len(subjects))
+
+    response = Response(output.getvalue())
+    filename = f"marks_template_{class_obj.name.replace(' ', '_')}.csv"
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    return response
 
 
 @teacher_bp.route('/export-marks/<int:class_id>')

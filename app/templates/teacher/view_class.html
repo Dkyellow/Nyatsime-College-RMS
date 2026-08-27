@@ -96,14 +96,15 @@
             <div class="modal-body">
                 <div class="row g-3 mb-3">
                     <div class="col-6"><label class="form-label">Term</label>
-                        <select class="form-select" name="term">{% for t in terms %}<option value="{{ t.name }}">{{ t.name }}</option>{% endfor %}</select>
+                        <select class="form-select" name="term">{% for t in terms %}<option value="{{ t.name }}" {% if academic_term == t.name %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select>
                     </div>
                     <div class="col-6"><label class="form-label">Year</label>
-                        <select class="form-select" name="year">{% for y in academic_years %}<option value="{{ y.name }}">{{ y.name }}</option>{% endfor %}</select>
+                        <select class="form-select" name="year">{% for y in academic_years %}<option value="{{ y.name }}" {% if academic_year == y.name %}selected{% endif %}>{{ y.name }}</option>{% endfor %}</select>
                     </div>
                 </div>
                 <p class="small text-muted">CSV or Excel. First column <code>admission_number</code>, then one column per subject code:</p>
                 <code>{{ subjects|map(attribute='code')|join(', ') }}</code>
+                <div class="mt-2"><a href="{{ url_for('teacher.download_template', class_id=class_obj.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-download me-1"></i>Download Template</a></div>
                 <input type="file" class="form-control mt-3" name="file" accept=".csv,.xlsx,.xls" required>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Import Marks</button></div>

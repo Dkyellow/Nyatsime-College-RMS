@@ -85,6 +85,9 @@
             <p class="small text-muted mb-3">Submit the report for approval. Positions are calculated automatically and editing will be locked.</p>
             <form method="POST" action="{{ url_for('teacher.submit_report', report_id=report.id) }}" id="submitForm">
                 <input type="hidden" name="teacher_comment" value="">
+                {% for mark in report.marks %}
+                <input type="hidden" name="score_{{ mark.subject_id }}" value="{{ mark.score or 0 }}">
+                {% endfor %}
                 <button type="submit" class="btn btn-primary w-100" data-confirm="Submit this report? It cannot be edited after submission."><i class="bi bi-send me-2"></i>Submit for Approval</button>
             </form>
         </div>
@@ -131,6 +134,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('submitForm')?.addEventListener('submit', function() {
         this.querySelector('input[name="teacher_comment"]').value =
             document.querySelector('textarea[name="teacher_comment"]').value;
+        // Copy current mark values to hidden fields
+        document.querySelectorAll('#marksForm .mark-input').forEach(function(input) {
+            const subjectId = input.name.replace('score_', '');
+            const hidden = this.querySelector('input[name="score_' + subjectId + '"]');
+            if (hidden) hidden.value = input.value || '0';
+        }.bind(this));
     });
 });
 </script>

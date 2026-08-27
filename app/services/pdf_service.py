@@ -10,10 +10,10 @@ from flask import render_template_string, current_app
 # ================================================================
 # REPORT TEMPLATE VERSION
 # ================================================================
-# Change this whenever you make changes to the PDF template.
+# Change this whenever the PDF layout is changed.
 # This prevents old cached PDFs from being reused.
 
-REPORT_TEMPLATE_VERSION = "v12"
+REPORT_TEMPLATE_VERSION = "v14"
 
 
 # ================================================================
@@ -28,33 +28,38 @@ REPORT_CARD_HTML = """
 
 <style>
 
+/* ================================================================
+   PAGE
+   ================================================================ */
+
 @page {
     size: A4;
     margin: 9mm 12mm 9mm 12mm;
 
+    /*
+     * watermark_path is a FULL A4 transparent image.
+     * The school logo has already been positioned at the centre
+     * by Python, so xhtml2pdf does not need to calculate its position.
+     */
     background-image: url("{{ watermark_path }}");
-   
-
-    background-width: 105mm;
-    background-height: 105mm;
+    background-repeat: no-repeat;
+    background-position: 0mm 0mm;
+    background-width: 210mm;
+    background-height: 297mm;
 }
+
 
 * {
     margin: 0;
     padding: 0;
 }
 
+
 body {
     font-family: Helvetica, Arial, sans-serif;
     font-size: 9pt;
     color: #111;
 }
-
-
-/* ================================================================
-   LOGO WATERMARK
-   ================================================================ */
-
 
 
 /* ================================================================
@@ -178,7 +183,7 @@ body {
 
 
 /* ================================================================
-   EXPLICIT TABLE FONT SIZES
+   TABLE FONT SIZES
    ================================================================ */
 
 .number-cell {
@@ -247,13 +252,6 @@ body {
 
 
 <!-- =============================================================
-     LOGO WATERMARK
-     ============================================================= -->
-
-
-
-
-<!-- =============================================================
      HEADER
      ============================================================= -->
 
@@ -263,6 +261,7 @@ body {
     <td class="hdr-logo">
         <img src="{{ crest_path }}" />
     </td>
+
 
     <td class="hdr-title">
 
@@ -276,7 +275,8 @@ body {
 
     </td>
 
-    <!-- Empty cell keeps title centred -->
+
+    <!-- Keeps title visually centred -->
     <td style="width:23mm"></td>
 
 </tr>
@@ -348,12 +348,17 @@ body {
     <td style="width:32mm" class="fld">
 
         {% if report.position %}
+
             {{ report.position }}
+
             {% if class_size %}
                 / {{ class_size }}
             {% endif %}
+
         {% else %}
+
             &mdash;
+
         {% endif %}
 
     </td>
@@ -423,11 +428,7 @@ body {
 
 
         <td class="grade-cell"
-            style="font-size:11pt; font-weight:bold;
-            {% if m.score < 50 %}
-            color: red;  <!-- apply red for weak, green for strong -->
-            {% endif %}
-            ">
+            style="font-size:11pt; font-weight:bold;">
             {{ m.grade or '&mdash;' }}
         </td>
 
@@ -542,8 +543,8 @@ body {
 def _get_cache_dir():
 
     cache_dir = current_app.config.get(
-        'REPORT_CACHE_DIR',
-        'cached_reports'
+        "REPORT_CACHE_DIR",
+        "cached_reports"
     )
 
     os.makedirs(
@@ -595,54 +596,55 @@ def _get_cache_path(report_id, updated_at):
 # ================================================================
 
 def _get_logo_path():
+    """
+    Returns the currently configured school logo.
 
-    from app.models import SchoolSetting
+    Falls back to the default logo when no uploaded logo
+    is configured.
+    """
+    import tempfile
 
-    logo_filename = SchoolSetting.get(
-        'logo_filename',
-        ''
-    )
+    from app.models import SchoolLogo
 
-    if logo_filename:
+    logo = SchoolLogo.get_current()
 
-        path = os.path.join(
-            current_app.root_path,
-            'static',
-            'uploads',
-            logo_filename
-        )
+    if logo:
+        # Save logo to a temporary file for xhtml2pdf
+        suffix = os.path.splitext(logo.filename)[1] or '.png'
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        tmp.write(logo.data)
+        tmp.close()
+        return tmp.name
 
-        if os.path.exists(path):
-            return path
-
-
-    # Default fallback logo
     return os.path.join(
         current_app.root_path,
-        'static',
-        'img',
-        'nyatsime-crest.png'
+        "static",
+        "img",
+        "nyatsime-crest.png"
     )
 
 
 # ================================================================
-# CREATE TRANSPARENT WATERMARK
+# CREATE FULL A4 WATERMARK
 # ================================================================
 
 def _get_watermark_path():
     """
-    Creates a transparent PNG version of the school's logo.
+    Creates a full A4 transparent PNG.
 
-    The transparency is applied directly to the PNG because
-    xhtml2pdf does not always reliably support CSS opacity.
+    The school's logo is placed in the exact centre of this
+    A4-sized image. This avoids relying on xhtml2pdf's
+    background-position support, which can be inconsistent.
     """
 
     logo_path = _get_logo_path()
 
+
+    # Directory where generated watermark images are stored
     watermark_dir = os.path.join(
         current_app.root_path,
-        'static',
-        'watermarks'
+        "static",
+        "watermarks"
     )
 
     os.makedirs(
@@ -651,56 +653,149 @@ def _get_watermark_path():
     )
 
 
-    # Use a fixed PNG filename based on the source logo.
+    # Build a watermark filename based on the school's logo name
     logo_name = os.path.splitext(
         os.path.basename(logo_path)
     )[0]
 
+
     watermark_path = os.path.join(
         watermark_dir,
-        f"watermark_{logo_name}.png"
+        f"a4_watermark_{logo_name}.png"
     )
 
 
-    # Reuse an existing watermark if it has already been generated.
-    if os.path.exists(watermark_path):
+    # ============================================================
+    # REUSE WATERMARK IF IT IS NEWER THAN THE SOURCE LOGO
+    # ============================================================
 
-        return watermark_path
+    try:
+
+        if os.path.exists(watermark_path):
+
+            watermark_modified = os.path.getmtime(
+                watermark_path
+            )
+
+            logo_modified = os.path.getmtime(
+                logo_path
+            )
+
+            if watermark_modified >= logo_modified:
+                return watermark_path
+
+    except Exception:
+        pass
 
 
     try:
 
-        # Open the school's logo.
-        image = Image.open(
+        # ========================================================
+        # OPEN SCHOOL LOGO
+        # ========================================================
+
+        logo = Image.open(
             logo_path
         ).convert("RGBA")
 
 
-        # Resize while preserving the aspect ratio.
-        image.thumbnail(
-            (800, 800),
+        # ========================================================
+        # CREATE FULL A4 CANVAS
+        #
+        # 1240 x 1754 follows the A4 aspect ratio.
+        # The exact pixel resolution is not important because
+        # the image is scaled to A4 dimensions in the PDF.
+        # ========================================================
+
+        PAGE_WIDTH = 1240
+        PAGE_HEIGHT = 1754
+
+
+        page = Image.new(
+            "RGBA",
+            (
+                PAGE_WIDTH,
+                PAGE_HEIGHT
+            ),
+            (
+                255,
+                255,
+                255,
+                0
+            )
+        )
+
+
+        # ========================================================
+        # WATERMARK SIZE
+        # ========================================================
+        # Maximum size for the school logo.
+
+        WATERMARK_SIZE = 620
+
+
+        logo.thumbnail(
+            (
+                WATERMARK_SIZE,
+                WATERMARK_SIZE
+            ),
             Image.LANCZOS
         )
 
 
-        # Get the transparency channel.
-        alpha = image.getchannel("A")
+        # ========================================================
+        # MAKE LOGO TRANSPARENT
+        # ========================================================
+
+        alpha = logo.getchannel("A")
 
 
-        # Make the watermark approximately 8% visible.
+        # 8% visibility
         alpha = alpha.point(
-            lambda p: int(p * 0.2)
+            lambda p: int(p * 0.08)
         )
 
 
-        # Apply the new transparency.
-        image.putalpha(
+        logo.putalpha(
             alpha
         )
 
 
-        # Save as PNG because PNG supports transparency.
-        image.save(
+        # ========================================================
+        # CALCULATE EXACT CENTRE OF PAGE
+        # ========================================================
+
+        logo_width, logo_height = logo.size
+
+
+        x = (
+            PAGE_WIDTH - logo_width
+        ) // 2
+
+
+        y = (
+            PAGE_HEIGHT - logo_height
+        ) // 2
+
+
+        # ========================================================
+        # PLACE LOGO ON A4 CANVAS
+        # ========================================================
+
+        page.alpha_composite(
+            logo,
+            (
+                x,
+                y
+            )
+        )
+
+
+        # ========================================================
+        # SAVE FULL A4 WATERMARK
+        # ========================================================
+
+        page.save(
             watermark_path,
             "PNG"
         )
@@ -711,8 +806,7 @@ def _get_watermark_path():
 
     except Exception:
 
-        # If watermark creation fails,
-        # fall back to the normal school logo.
+        # Fall back to the normal logo if watermark generation fails.
         return logo_path
 
 
@@ -728,12 +822,15 @@ def generate_report_card_pdf(report):
     )
 
 
-    # Return cached PDF when available.
+    # ============================================================
+    # RETURN CACHED REPORT
+    # ============================================================
+
     if os.path.exists(cache_path):
 
         with open(
             cache_path,
-            'rb'
+            "rb"
         ) as f:
 
             return f.read()
@@ -744,7 +841,6 @@ def generate_report_card_pdf(report):
     # ============================================================
 
     student = report.student
-
     class_obj = report.class_obj
 
 
@@ -754,12 +850,13 @@ def generate_report_card_pdf(report):
 
     marks = []
 
+
     for m in sorted(
         report.marks,
         key=lambda x: (
             x.subject.name
             if x.subject
-            else ''
+            else ""
         )
     ):
 
@@ -775,21 +872,21 @@ def generate_report_card_pdf(report):
 
         marks.append({
 
-            'subject': m.subject,
+            "subject": m.subject,
 
-            'score': m.score or 0,
+            "score": m.score or 0,
 
-            'max_score': max_score,
+            "max_score": max_score,
 
-            'percent': percent,
+            "percent": percent,
 
-            'grade': m.grade,
+            "grade": m.grade,
 
         })
 
 
     # ============================================================
-    # SCHOOL SETTINGS
+    # LOAD SCHOOL SETTINGS
     # ============================================================
 
     from app.models import (
@@ -798,7 +895,7 @@ def generate_report_card_pdf(report):
     )
 
 
-    def setting(key, default=''):
+    def setting(key, default=""):
 
         return SchoolSetting.get(
             key,
@@ -806,15 +903,15 @@ def generate_report_card_pdf(report):
         )
 
 
-    # Main school crest
+    # Main logo shown in report header
     crest_path = _get_logo_path()
 
 
-    # Transparent watermark
+    # Full A4 transparent watermark
     watermark_path = _get_watermark_path()
 
 
-    # Number of active students in the class
+    # Active student count for class position display
     class_size = StudentModel.query.filter_by(
 
         class_id=report.class_id,
@@ -825,7 +922,7 @@ def generate_report_card_pdf(report):
 
 
     # ============================================================
-    # RENDER HTML
+    # RENDER REPORT HTML
     # ============================================================
 
     html_content = render_template_string(
@@ -837,7 +934,7 @@ def generate_report_card_pdf(report):
         class_name=(
             class_obj.name
             if class_obj
-            else 'N/A'
+            else "N/A"
         ),
 
         report=report,
@@ -852,33 +949,33 @@ def generate_report_card_pdf(report):
 
 
         school_name=setting(
-            'school_name',
-            'NYATSIME COLLEGE'
+            "school_name",
+            "NYATSIME COLLEGE"
         ),
 
         school_address=setting(
-            'school_address',
-            ''
+            "school_address",
+            ""
         ),
 
         school_phone=setting(
-            'school_phone',
-            ''
+            "school_phone",
+            ""
         ),
 
         school_email=setting(
-            'school_email',
-            ''
+            "school_email",
+            ""
         ),
 
         primary_color=setting(
-            'primary_color',
-            '#0370b1'
+            "primary_color",
+            "#0370b1"
         ),
 
         accent_color=setting(
-            'accent_color',
-            '#F0B429'
+            "accent_color",
+            "#F0B429"
         ),
 
     )
@@ -903,7 +1000,7 @@ def generate_report_card_pdf(report):
     if pisa_status.err:
 
         raise Exception(
-            'Error generating PDF'
+            "Error generating PDF"
         )
 
 
@@ -913,14 +1010,14 @@ def generate_report_card_pdf(report):
 
 
     # ============================================================
-    # SAVE PDF CACHE
+    # CACHE GENERATED PDF
     # ============================================================
 
     try:
 
         with open(
             cache_path,
-            'wb'
+            "wb"
         ) as f:
 
             f.write(
@@ -929,7 +1026,7 @@ def generate_report_card_pdf(report):
 
     except Exception:
 
-        # Do not prevent PDF generation if caching fails.
+        # PDF generation should still work even if caching fails.
         pass
 
 
@@ -942,7 +1039,7 @@ def generate_report_card_pdf(report):
 
 def invalidate_report_cache(report_id):
     """
-    Removes all cached PDFs belonging to the specified report.
+    Deletes all cached PDF files belonging to one report.
     """
 
     cache_dir = _get_cache_dir()

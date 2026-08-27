@@ -256,3 +256,34 @@ class SchoolSetting(db.Model):
             row.value = value
         else:
             db.session.add(cls(key=key, value=value))
+
+
+class SchoolLogo(db.Model):
+    """Store the school logo as binary data in the database.
+    
+    This ensures logos persist across Render service restarts
+    (which use an ephemeral filesystem).
+    """
+    __tablename__ = 'school_logos'
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(100), nullable=False)
+    content_type = db.Column(db.String(50), nullable=False, default='image/png')
+    data = db.Column(db.LargeBinary, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @classmethod
+    def get_current(cls):
+        """Get the most recently uploaded logo."""
+        return cls.query.order_by(cls.updated_at.desc()).first()
+
+    @classmethod
+    def save_logo(cls, filename, content_type, data):
+        """Save a new logo, removing any previous ones."""
+        # Delete all existing logos
+        cls.query.delete()
+        db.session.flush()
+        # Add new logo
+        logo = cls(filename=filename, content_type=content_type, data=data)
+        db.session.add(logo)
+        return logo
