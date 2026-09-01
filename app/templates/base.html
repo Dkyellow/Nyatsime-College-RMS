@@ -5,6 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ SCHOOL_NAME }} - Academic Records{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ SCHOOL_LOGO_URL }}">
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="{{ SCHOOL_NAME }} - Academic Records & Report Management System. Manage students, teachers, classes, and generate report cards.">
+    <meta name="keywords" content="{{ SCHOOL_NAME }}, school, education, reports, students, teachers, academic records">
+    <meta name="author" content="{{ SCHOOL_NAME }}">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:title" content="{{ SCHOOL_NAME }} - Academic Records">
+    <meta property="og:description" content="{{ SCHOOL_NAME }} Academic Records & Report Management System. Manage students, teachers, classes, and generate report cards.">
+    <meta property="og:image" content="{{ SCHOOL_LOGO_URL }}">
+    <meta property="og:site_name" content="{{ SCHOOL_NAME }}">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="{{ request.url }}">
+    <meta name="twitter:title" content="{{ SCHOOL_NAME }} - Academic Records">
+    <meta name="twitter:description" content="{{ SCHOOL_NAME }} Academic Records & Report Management System. Manage students, teachers, classes, and generate report cards.">
+    <meta name="twitter:image" content="{{ SCHOOL_LOGO_URL }}">
+
+    <!-- Additional Meta -->
+    <meta name="theme-color" content="{{ PRIMARY_COLOR or '#1C3480' }}">
+    <meta name="msapplication-TileColor" content="{{ PRIMARY_COLOR or '#1C3480' }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="{{ SCHOOL_NAME }}">
+    <link rel="apple-touch-icon" href="{{ SCHOOL_LOGO_URL }}">
+
+    {% block extra_meta %}{% endblock %}
     <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -35,8 +65,18 @@
 
                 {% if current_user.role == 'admin' %}
                 <li class="sidebar-section"><span>Academic Management</span></li>
+                <li class="sidebar-section"><span>Student Management</span></li>
                 <li class="{% if request.endpoint == 'admin.students' or request.endpoint == 'admin.student_profile' %}active{% endif %}">
                     <a href="{{ url_for('admin.students') }}"><i class="bi bi-mortarboard"></i><span class="nav-label">Students</span></a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.import_class_list' %}active{% endif %}">
+                    <a href="{{ url_for('admin.import_class_list') }}"><i class="bi bi-upload"></i><span class="nav-label">Import Class List</span></a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.promote_students' %}active{% endif %}">
+                    <a href="{{ url_for('admin.promote_students') }}"><i class="bi bi-arrow-up-circle"></i><span class="nav-label">Promote Students</span></a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.form3_transition' %}active{% endif %}">
+                    <a href="{{ url_for('admin.form3_transition') }}"><i class="bi bi-arrow-left-right"></i><span class="nav-label">Form 3 Transition</span></a>
                 </li>
                 <li class="{% if request.endpoint == 'admin.teachers' %}active{% endif %}">
                     <a href="{{ url_for('admin.teachers') }}"><i class="bi bi-person-workspace"></i><span class="nav-label">Teachers</span></a>
@@ -50,7 +90,6 @@
                 <li class="{% if request.endpoint == 'admin.academic_calendar' %}active{% endif %}">
                     <a href="{{ url_for('admin.academic_calendar') }}"><i class="bi bi-calendar3"></i><span class="nav-label">Academic Calendar</span></a>
                 </li>
-
                 <li class="sidebar-section"><span>Results &amp; Reports</span></li>
                 <li class="{% if request.endpoint == 'admin.grade_subjects' %}active{% endif %}">
                     <a href="{{ url_for('admin.grade_subjects') }}"><i class="bi bi-journal-bookmark"></i><span class="nav-label">Form Subjects</span></a>
@@ -58,7 +97,17 @@
                 <li class="{% if request.endpoint == 'admin.reports' %}active{% endif %}">
                     <a href="{{ url_for('admin.reports') }}"><i class="bi bi-file-earmark-bar-graph"></i><span class="nav-label">Report Cards</span></a>
                 </li>
+                <li class="{% if request.endpoint == 'admin.performance_audit' %}active{% endif %}">
+                    <a href="{{ url_for('admin.performance_audit') }}"><i class="bi bi-graph-up"></i><span class="nav-label">Performance Audit</span></a>
+                </li>
+
                 <li class="sidebar-section"><span>Administration</span></li>
+                <li class="{% if request.endpoint == 'admin.teacher_assignments' %}active{% endif %}">
+                    <a href="{{ url_for('admin.teacher_assignments') }}"><i class="bi bi-person-check"></i><span class="nav-label">Teacher Assignments</span></a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.audit_logs' %}active{% endif %}">
+                    <a href="{{ url_for('admin.audit_logs') }}"><i class="bi bi-clock-history"></i><span class="nav-label">Audit Logs</span></a>
+                </li>
                 <li class="{% if request.endpoint == 'admin.users' %}active{% endif %}">
                     <a href="{{ url_for('admin.users') }}"><i class="bi bi-shield-lock"></i><span class="nav-label">Users &amp; Roles</span></a>
                 </li>

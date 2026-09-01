@@ -602,25 +602,32 @@ def _get_logo_path():
     Falls back to the default logo when no uploaded logo
     is configured.
     """
-    import tempfile
 
-    from app.models import SchoolLogo
+    from app.models import SchoolSetting
 
-    logo = SchoolLogo.get_current()
+    logo_filename = SchoolSetting.get(
+        "logo_filename",
+        ""
+    )
 
-    if logo:
-        # Save logo to a temporary file for xhtml2pdf
-        suffix = os.path.splitext(logo.filename)[1] or '.png'
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-        tmp.write(logo.data)
-        tmp.close()
-        return tmp.name
+    if logo_filename:
+
+        path = os.path.join(
+            current_app.root_path,
+            "static",
+            "uploads",
+            logo_filename
+        )
+
+        if os.path.exists(path):
+            return path
+
 
     return os.path.join(
         current_app.root_path,
         "static",
         "img",
-        "nyatsime-crest.png"
+        "hillside-academy-crest.png"
     )
 
 
@@ -950,7 +957,7 @@ def generate_report_card_pdf(report):
 
         school_name=setting(
             "school_name",
-            "NYATSIME COLLEGE"
+            "HILLSIDE ACADEMY"
         ),
 
         school_address=setting(
@@ -970,12 +977,12 @@ def generate_report_card_pdf(report):
 
         primary_color=setting(
             "primary_color",
-            "#0370b1"
+            "#1C3480"
         ),
 
         accent_color=setting(
             "accent_color",
-            "#F0B429"
+            "#7A1F2B"
         ),
 
     )

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Teacher Assignments - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}
+<span class="school-chip"><img src="{{ SCHOOL_LOGO_URL }}" alt=""> Teacher Assignments</span>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h4 class="page-title">Teacher-Subject-Class Assignments</h4>
+        <p class="page-sub">Assign teachers to teach specific subjects in specific classes.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Assignment Form -->
+    <div class="col-lg-5">
+        <div class="card-panel">
+            <div class="panel-head">
+                <h6 class="panel-title"><i class="bi bi-plus-circle me-2"></i>New Assignment</h6>
+            </div>
+            <form method="POST" action="{{ url_for('admin.save_teacher_assignments') }}">
+                <div class="mb-3">
+                    <label class="form-label">Teacher</label>
+                    <select class="form-select" name="teacher_id" id="teacherSelect" required>
+                        <option value="">Select Teacher</option>
+                        {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}">{{ teacher.first_name }} {{ teacher.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Class</label>
+                    <select class="form-select" name="class_id" id="classSelect" required>
+                        <option value="">Select Class</option>
+                        {% for class in classes %}
+                        <option value="{{ class.id }}">{{ class.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Subjects (hold Ctrl to select multiple)</label>
+                    <select class="form-select" name="subject_ids" multiple size="6" required>
+                        {% for subject in subjects %}
+                        <option value="{{ subject.id }}">{{ subject.name }} ({{ subject.code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-check-lg me-2"></i>Save Assignment
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Current Assignments -->
+    <div class="col-lg-7">
+        <div class="card-panel">
+            <div class="panel-head">
+                <h6 class="panel-title"><i class="bi bi-list-check me-2"></i>Current Assignments</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table clean-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Teacher</th>
+                            <th>Class</th>
+                            <th>Subjects</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for teacher in teachers %}
+                        {% for class in classes %}
+                        {% set key = (teacher.id, class.id) %}
+                        {% if key in assignment_map %}
+                        <tr>
+                            <td><strong>{{ teacher.first_name }} {{ teacher.last_name }}</strong></td>
+                            <td>{{ class.name }}</td>
+                            <td>
+                                {% for subject in assignment_map[key] %}
+                                <span class="chip">{{ subject.name }}</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                        {% else %}
+                        <tr><td colspan="3" class="empty-row">No assignments configured yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

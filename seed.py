@@ -1,4 +1,4 @@
-﻿"""Seed the Nyatsime College secondary school database with demonstration data.
+﻿"""Seed the Hillside College secondary school database with demonstration data.
 
 Run:  python seed.py
 """
@@ -8,7 +8,7 @@ from datetime import datetime, date
 from app import create_app, db
 from app.models import (
     User, Admin, Teacher, Student, Class, Subject, Report, Mark,
-    ClassTeacher, Grade, GradeSubject, AcademicYear, AcademicTerm,
+    Grade, GradeSubject, AcademicYear, AcademicTerm, TeacherSubjectClass,
 )
 from app.academic import calculate_grade, generate_username, slugify_name
 from app.services import periods
@@ -83,7 +83,7 @@ def seed_database():
 
         print("Seeding users...")
         # Admin
-        admin_user = User(username='admin', email='admin@nyatsime.ac.zw', role='admin')
+        admin_user = User(username='admin', email='admin@Hillside.ac.zw', role='admin')
         admin_user.set_password('admin123')
         db.session.add(admin_user)
         db.session.flush()
@@ -93,10 +93,10 @@ def seed_database():
         # Teachers
         teachers = []
         teacher_data = [
-            ('teacher1', 'teacher123', 'r.chikwanha@nyatsime.ac.zw', 'Rudo', 'Chikwanha', 'NYT-T01', '+263 772 000 011'),
-            ('teacher2', 'teacher123', 'b.ndlovu@nyatsime.ac.zw', 'Blessing', 'Ndlovu', 'NYT-T02', '+263 772 000 012'),
-            ('teacher3', 'teacher123', 'f.mhike@nyatsime.ac.zw', 'Farai', 'Mhike', 'NYT-T03', '+263 772 000 013'),
-            ('teacher4', 'teacher123', 's.mutasa@nyatsime.ac.zw', 'Sarudzai', 'Mutasa', 'NYT-T04', '+263 772 000 014'),
+            ('teacher1', 'teacher123', 'r.chikwanha@Hillside.ac.zw', 'Rudo', 'Chikwanha', 'NYT-T01', '+263 772 000 011'),
+            ('teacher2', 'teacher123', 'b.ndlovu@Hillside.ac.zw', 'Blessing', 'Ndlovu', 'NYT-T02', '+263 772 000 012'),
+            ('teacher3', 'teacher123', 'f.mhike@Hillside.ac.zw', 'Farai', 'Mhike', 'NYT-T03', '+263 772 000 013'),
+            ('teacher4', 'teacher123', 's.mutasa@Hillside.ac.zw', 'Sarudzai', 'Mutasa', 'NYT-T04', '+263 772 000 014'),
         ]
         for username, password, email, first, last, emp_id, phone in teacher_data:
             user = User(username=username, email=email, role='teacher')
@@ -123,11 +123,21 @@ def seed_database():
             classes.append(cls)
         db.session.flush()
 
-        db.session.add(ClassTeacher(class_id=classes[0].id, teacher_id=teachers[0].id))
-        db.session.add(ClassTeacher(class_id=classes[1].id, teacher_id=teachers[1].id))
-        db.session.add(ClassTeacher(class_id=classes[2].id, teacher_id=teachers[2].id))
-        db.session.add(ClassTeacher(class_id=classes[3].id, teacher_id=teachers[3].id))
-        db.session.add(ClassTeacher(class_id=classes[4].id, teacher_id=teachers[0].id))
+        # Teacher-subject assignments
+        # Each teacher teaches specific subjects in specific classes
+        subjects_dict = {s.code: s for s in Subject.query.all()}
+        teacher_subject_assignments = [
+            (teachers[0], classes[0], [subjects_dict['ENG'], subjects_dict['MATH']]),
+            (teachers[1], classes[1], [subjects_dict['BIO'], subjects_dict['CHEM']]),
+            (teachers[2], classes[2], [subjects_dict['PHY'], subjects_dict['MATH']]),
+            (teachers[3], classes[3], [subjects_dict['GEO'], subjects_dict['HIST']]),
+            (teachers[0], classes[4], [subjects_dict['ENG'], subjects_dict['LIT']]),
+        ]
+        for teacher, cls, subj_list in teacher_subject_assignments:
+            for subj in subj_list:
+                db.session.add(TeacherSubjectClass(
+                    teacher_id=teacher.id, class_id=cls.id, subject_id=subj.id
+                ))
 
         print("Seeding students with user accounts...")
         student_data = [
@@ -168,7 +178,7 @@ def seed_database():
             else:
                 uname = generate_username(first, last, username_exists)
             used_usernames.add(uname)
-            user = User(username=uname, email=f'{uname}@student.nyatsime.ac.zw', role='student')
+            user = User(username=uname, email=f'{uname}@student.Hillside.ac.zw', role='student')
             user.set_password('student123')
             db.session.add(user)
             db.session.flush()
@@ -236,7 +246,7 @@ def seed_database():
                         report.grade_position = i
 
         db.session.commit()
-        print("Nyatsime College database seeded successfully!")
+        print("Hillside College database seeded successfully!")
         print(f"Demo login: student1 / student123 (any student)")
 
 

@@ -9,7 +9,7 @@ Changes applied:
   - Drops grading_scales table if present
   - Ensures fixed secondary school forms exist
   - Seeds default subjects, grade-subject mappings, academic year/terms
-  - Seeds all SchoolSetting defaults (Nyatsime College) if not yet configured
+  - Seeds all SchoolSetting defaults (Hillside Academy) if not yet configured
 
 Run:  python migrate_database.py
 """
@@ -63,6 +63,87 @@ def migrate_schema(conn):
         if table_exists(cur, t):
             cur.execute(f'DROP TABLE IF EXISTS "{t}"')
             print(f'  dropped table {t}')
+
+    # --- Drop old class_teachers table (replaced by teacher_subject_classes) ---
+    if table_exists(cur, 'class_teachers'):
+        cur.execute('DROP TABLE IF EXISTS "class_teachers"')
+        print('  dropped table class_teachers')
+
+    # --- Remove class_teacher_id column from classes if it exists ---
+    if table_exists(cur, 'classes') and column_exists(cur, 'classes', 'class_teacher_id'):
+        try:
+            cur.execute('ALTER TABLE classes DROP COLUMN class_teacher_id')
+            print('  dropped column classes.class_teacher_id')
+        except sqlite3.OperationalError:
+            print('  could not drop classes.class_teacher_id (may not exist)')
+
+    # --- Create teacher_subject_classes table ---
+    if not table_exists(cur, 'teacher_subject_classes'):
+        cur.execute('''CREATE TABLE teacher_subject_classes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            teacher_id INTEGER NOT NULL,
+            class_id INTEGER NOT NULL,
+            subject_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+            FOREIGN KEY (class_id) REFERENCES classes(id),
+            FOREIGN KEY (subject_id) REFERENCES subjects(id),
+            UNIQUE(teacher_id, class_id, subject_id)
+        )''')
+        print('  created table teacher_subject_classes')
+
+    # --- Create audit_logs table ---
+    if not table_exists(cur, 'audit_logs'):
+        cur.execute('''CREATE TABLE audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action VARCHAR(100) NOT NULL,
+            resource_type VARCHAR(50),
+            resource_id INTEGER,
+            details TEXT,
+            ip_address VARCHAR(45),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )''')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)')
+        print('  created table audit_logs')
+
+    # --- Create student_subjects table ---
+    if not table_exists(cur, 'student_subjects'):
+        cur.execute('''CREATE TABLE student_subjects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            subject_id INTEGER NOT NULL,
+            academic_year VARCHAR(10) NOT NULL,
+            is_active BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            FOREIGN KEY (subject_id) REFERENCES subjects(id),
+            UNIQUE(student_id, subject_id, academic_year)
+        )''')
+        print('  created table student_subjects')
+
+    # --- Create student_promotions table ---
+    if not table_exists(cur, 'student_promotions'):
+        cur.execute('''CREATE TABLE student_promotions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            from_class_id INTEGER,
+            to_class_id INTEGER,
+            from_grade_id INTEGER,
+            to_grade_id INTEGER,
+            academic_year VARCHAR(10) NOT NULL,
+            promotion_type VARCHAR(20) NOT NULL,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            FOREIGN KEY (from_class_id) REFERENCES classes(id),
+            FOREIGN KEY (to_class_id) REFERENCES classes(id),
+            FOREIGN KEY (from_grade_id) REFERENCES grades(id),
+            FOREIGN KEY (to_grade_id) REFERENCES grades(id)
+        )''')
+        print('  created table student_promotions')
 
     # --- Remove education_level_id columns where they linger ---
     for table in ['grades', 'report_templates', 'students', 'reports']:
@@ -175,7 +256,7 @@ def seed_structure(app):
         # Default report template
         if ReportTemplate.query.count() == 0:
             db.session.add(ReportTemplate(
-                name='Nyatsime College Secondary Report Card',
+                name='Hillside Academy Secondary Report Card',
                 template_type='secondary',
                 description='Official academic report card for all forms',
                 is_default=True))
@@ -183,9 +264,9 @@ def seed_structure(app):
 
         # Brand defaults
         defaults = {
-            'school_name': 'NYATSIME COLLEGE',
+            'school_name': 'HILLSIDE ACADEMY',
             'school_motto': 'Knowledge | Integrity | Excellence',
-            'school_address': 'P.O. Box Nyatsime, Zimbabwe',
+            'school_address': 'P.O. Box Hillside, Zimbabwe',
             'school_phone': '',
             'school_email': '',
         }
@@ -203,7 +284,7 @@ def seed_structure(app):
             for s in students_without_users:
                 uname = generate_username(s.first_name, s.last_name, username_exists)
                 used_usernames.add(uname)
-                user = User(username=uname, email=f'{uname}@student.nyatsime.ac.zw', role='student')
+                user = User(username=uname, email=f'{uname}@student.hillside.ac.zw', role='student')
                 user.set_password('student123')
                 db.session.add(user)
                 db.session.flush()
@@ -214,19 +295,19 @@ def seed_structure(app):
 
 
 def seed_school_settings(app):
-    """Populate SchoolSetting with Nyatsime College defaults for any keys not yet set."""
+    """Populate SchoolSetting with Hillside Academy defaults for any keys not yet set."""
     defaults = {
-        'school_name':       'NYATSIME COLLEGE',
+        'school_name':       'HILLSIDE ACADEMY',
         'school_short_name': 'Secondary School',
         'school_motto':      'Knowledge | Integrity | Excellence',
-        'school_address':    'P.O. Box Nyatsime, Zimbabwe',
+        'school_address':    'P.O. Box Hillside, Zimbabwe',
         'school_city':       'Harare',
         'school_country':    'Zimbabwe',
         'school_phone':      '',
         'school_email':      '',
         'school_website':    '',
-        'primary_color':     '#0370b1',
-        'accent_color':      '#F0B429',
+        'primary_color':     '#1C3480',
+        'accent_color':      '#7A1F2B',
         'report_footer':     '',
         'logo_filename':     '',
     }

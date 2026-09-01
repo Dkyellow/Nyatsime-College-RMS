@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Import Class List - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}
+<span class="school-chip"><img src="{{ SCHOOL_LOGO_URL }}" alt=""> Import Class List</span>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h4 class="page-title">Import Class List</h4>
+        <p class="page-sub">Upload a class list to automatically create student accounts.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card-panel">
+            <div class="panel-head">
+                <h6 class="panel-title"><i class="bi bi-upload me-2"></i>Upload Class List</h6>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label">Select Class</label>
+                    <select class="form-select" name="class_id" required>
+                        <option value="">Choose Class</option>
+                        {% for class in classes %}
+                        <option value="{{ class.id }}">{{ class.name }} ({{ class.grade.name if class.grade else '' }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Academic Year</label>
+                    <input type="text" class="form-control" name="academic_year" value="{{ CURRENT_YEAR }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Upload File (CSV or Excel)</label>
+                    <input type="file" class="form-control" name="file" accept=".csv,.xlsx,.xls" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-upload me-2"></i>Import Students
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card-panel">
+            <div class="panel-head">
+                <h6 class="panel-title"><i class="bi bi-info-circle me-2"></i>Instructions</h6>
+            </div>
+            <div class="mb-3">
+                <h6>Template Format</h6>
+                <p class="text-muted small">Download the template and fill in your student data.</p>
+                <a href="{{ url_for('admin.download_class_list_template') }}" class="btn btn-outline btn-sm">
+                    <i class="bi bi-download me-1"></i>Download Template
+                </a>
+            </div>
+            <hr>
+            <div class="mb-3">
+                <h6>Required Columns</h6>
+                <ul class="small text-muted">
+                    <li><strong>first_name</strong> - Student's first name</li>
+                    <li><strong>last_name</strong> - Student's surname</li>
+                    <li><strong>admission_number</strong> - Unique admission number</li>
+                    <li><strong>gender</strong> - Male or Female</li>
+                    <li><strong>date_of_birth</strong> - Format: YYYY-MM-DD</li>
+                </ul>
+            </div>
+            <hr>
+            <div class="mb-3">
+                <h6>Auto-Created Accounts</h6>
+                <p class="text-muted small">Portal accounts are automatically created for each student.</p>
+                <p class="text-muted small"><strong>Username:</strong> firstname + surname (e.g., johndoe)</p>
+                <p class="text-muted small"><strong>Password:</strong> firstname123 (e.g., john123)</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -10,6 +10,7 @@
         <p class="page-sub">Class groups across all secondary forms, from Form 1 to Upper 6.</p>
     </div>
     <div class="head-actions">
+        <a href="{{ url_for('admin.teacher_assignments') }}" class="btn btn-outline me-2"><i class="bi bi-person-check me-1"></i>Manage Assignments</a>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClassModal"><i class="bi bi-plus-lg me-1"></i>Add Class</button>
     </div>
 </div>
@@ -50,12 +51,12 @@
             {% endif %}
             <div class="d-flex align-items-center gap-3 small text-muted">
                 <span><i class="bi bi-mortarboard me-1"></i>{{ class.students|length }} Students</span>
-                {% if class.class_teacher %}<span><i class="bi bi-person-workspace me-1"></i>{{ class.class_teacher.first_name }} {{ class.class_teacher.last_name }}</span>{% endif %}
             </div>
-            {% if class.teachers %}
+            {% set teachers = class.teachers %}
+            {% if teachers %}
             <hr class="soft-hr my-2">
             <div>
-                {% for teacher in class.teachers %}<span class="chip">{{ teacher.first_name }} {{ teacher.last_name }}</span>{% endfor %}
+                {% for teacher in teachers %}<span class="chip">{{ teacher.first_name }} {{ teacher.last_name }}</span>{% endfor %}
             </div>
             {% endif %}
         </div>
@@ -69,8 +70,6 @@
                     <div class="col-md-6"><label class="form-label">Class Name</label><input type="text" class="form-control" name="name" value="{{ class.name }}" required></div>
                     <div class="col-md-6"><label class="form-label">Section / Stream</label><input type="text" class="form-control" name="section" value="{{ class.section or '' }}"></div>
                     <div class="col-md-6"><label class="form-label">Form</label><select class="form-select" name="grade_id" required>{% for grade in grades %}<option value="{{ grade.id }}" {% if class.grade_id == grade.id %}selected{% endif %}>{{ grade.name }} ({{ grade.level_group }})</option>{% endfor %}</select></div>
-                    <div class="col-md-6"><label class="form-label">Class Teacher</label><select class="form-select" name="class_teacher_id"><option value="">Select</option>{% for teacher in teachers %}<option value="{{ teacher.id }}" {% if class.class_teacher_id == teacher.id %}selected{% endif %}>{{ teacher.first_name }} {{ teacher.last_name }}</option>{% endfor %}</select></div>
-                    <div class="col-12"><label class="form-label">Subject Teachers</label><select class="form-select" name="teacher_ids" multiple size="4">{% for teacher in teachers %}<option value="{{ teacher.id }}" {% if teacher in class.teachers %}selected{% endif %}>{{ teacher.first_name }} {{ teacher.last_name }}</option>{% endfor %}</select></div>
                 </div></div>
                 <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Save Changes</button></div>
             </form>
@@ -90,8 +89,6 @@
                 <div class="col-md-6"><label class="form-label">Class Name</label><input type="text" class="form-control" name="name" required placeholder="e.g., Form 1A or Lower 6 Arts"></div>
                 <div class="col-md-6"><label class="form-label">Section / Stream</label><input type="text" class="form-control" name="section" placeholder="e.g., A, Science, Arts"></div>
                 <div class="col-md-6"><label class="form-label">Form</label><select class="form-select" name="grade_id" required>{% for grade in grades %}<option value="{{ grade.id }}">{{ grade.name }} ({{ grade.level_group }})</option>{% endfor %}</select></div>
-                <div class="col-md-6"><label class="form-label">Class Teacher</label><select class="form-select" name="class_teacher_id"><option value="">Select</option>{% for teacher in teachers %}<option value="{{ teacher.id }}">{{ teacher.first_name }} {{ teacher.last_name }}</option>{% endfor %}</select></div>
-                <div class="col-12"><label class="form-label">Subject Teachers</label><select class="form-select" name="teacher_ids" multiple size="4">{% for teacher in teachers %}<option value="{{ teacher.id }}">{{ teacher.first_name }} {{ teacher.last_name }}</option>{% endfor %}</select></div>
             </div></div>
             <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Create Class</button></div>
         </form>

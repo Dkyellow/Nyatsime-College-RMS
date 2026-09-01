@@ -6,7 +6,7 @@ from datetime import datetime
 from app.teacher import teacher_bp
 from app.models import (
     db, User, Teacher, Student, Class, Subject, Report, Mark,
-    Grade, GradeSubject, AcademicYear, AcademicTerm
+    Grade, GradeSubject, AcademicYear, AcademicTerm, TeacherSubjectClass
 )
 from functools import wraps
 from app.services.pdf_service import invalidate_report_cache
@@ -23,6 +23,22 @@ def teacher_required(f):
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+def get_assigned_subjects(teacher_id, class_id):
+    """Get subjects a teacher is assigned to teach in a specific class."""
+    assignments = TeacherSubjectClass.query.filter_by(
+        teacher_id=teacher_id, class_id=class_id
+    ).all()
+    subject_ids = [a.subject_id for a in assignments]
+    if not subject_ids:
+        return []
+    return Subject.query.filter(Subject.id.in_(subject_ids)).all()
+
+
+def get_teacher_id():
+    """Get the teacher record for the current user."""
+    return Teacher.query.filter_by(user_id=current_user.id).first()
 
 
 def get_subjects_for_grade(grade_id):
@@ -97,9 +113,21 @@ def dashboard():
 @teacher_required
 def view_class(class_id):
     class_obj = Class.query.get_or_404(class_id)
+    teacher = get_teacher_id()
+
+    # Verify teacher is assigned to this class
+    assignments = TeacherSubjectClass.query.filter_by(
+        teacher_id=teacher.id, class_id=class_id
+    ).all()
+    if not assignments:
+        flash('You are not assigned to teach in this class.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
+
+    # Only show subjects this teacher is assigned to teach
+    subjects = get_assigned_subjects(teacher.id, class_id)
+
     students = Student.query.filter_by(class_id=class_id, is_active=True).order_by(Student.admission_number).all()
     grade = class_obj.grade
-    subjects = get_subjects_for_grade(grade.id) if grade else Subject.query.all()
     years = AcademicYear.query.filter_by(is_active=True).order_by(AcademicYear.name.desc()).all()
     default_term, default_year = periods.get_default_period()
     academic_term = request.args.get('term', default_term)
@@ -123,14 +151,33 @@ def view_class(class_id):
 @teacher_required
 def subject_marks(class_id):
     class_obj = Class.query.get_or_404(class_id)
+    teacher = get_teacher_id()
+
+    # Verify teacher is assigned to this class
+    assignments = TeacherSubjectClass.query.filter_by(
+        teacher_id=teacher.id, class_id=class_id
+    ).all()
+    if not assignments:
+        flash('You are not assigned to teach in this class.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
+
+    # Only show assigned subjects
+    subjects = get_assigned_subjects(teacher.id, class_id)
+    subject_ids = [s.id for s in subjects]
+
     students = Student.query.filter_by(class_id=class_id, is_active=True).order_by(Student.admission_number).all()
-    grade = class_obj.grade
-    subjects = get_subjects_for_grade(grade.id) if grade else Subject.query.all()
     years = AcademicYear.query.filter_by(is_active=True).order_by(AcademicYear.name.desc()).all()
     default_term, default_year = periods.get_default_period()
     academic_term = request.args.get('term', default_term)
     academic_year = request.args.get('year', default_year)
-    subject = Subject.query.get(request.args.get('subject_id', type=int)) if subjects else None
+
+    subject_id = request.args.get('subject_id', type=int)
+    subject = Subject.query.get(subject_id) if subject_id and subject_id in subject_ids else None
+
+    # If no valid subject selected, redirect to first assigned subject
+    if not subject and subjects:
+        return redirect(url_for('teacher.subject_marks', class_id=class_id,
+                                term=academic_term, year=academic_year, subject_id=subjects[0].id))
 
     existing = {}
     if subject:
@@ -152,16 +199,28 @@ def subject_marks(class_id):
 @teacher_required
 def save_subject_marks(class_id):
     class_obj = Class.query.get_or_404(class_id)
+    teacher = get_teacher_id()
+
+    # Verify teacher is assigned to this class
+    assignments = TeacherSubjectClass.query.filter_by(
+        teacher_id=teacher.id, class_id=class_id
+    ).all()
+    if not assignments:
+        flash('You are not assigned to teach in this class.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
+
     grade = class_obj.grade
     academic_term = request.form.get('term', 'Term 1')
     academic_year = request.form.get('year', str(datetime.now().year))
     subject_id = request.form.get('subject_id', type=int)
 
-    subject = Subject.query.get_or_404(subject_id) if subject_id else None
-    if not subject:
-        flash('Select a subject first.', 'danger')
+    # Verify subject is assigned to this teacher for this class
+    assigned_subject_ids = [a.subject_id for a in assignments]
+    if not subject_id or subject_id not in assigned_subject_ids:
+        flash('You are not assigned to teach this subject in this class.', 'danger')
         return redirect(url_for('teacher.subject_marks', class_id=class_id))
 
+    subject = Subject.query.get_or_404(subject_id)
     students = Student.query.filter_by(class_id=class_id, is_active=True).all()
     saved = 0
     for student in students:
@@ -180,8 +239,10 @@ def save_subject_marks(class_id):
                             academic_term=academic_term, academic_year=academic_year, status='draft')
             db.session.add(report)
             db.session.flush()
-            for s in (get_subjects_for_grade(grade.id) if grade else Subject.query.all()):
-                db.session.add(Mark(report_id=report.id, subject_id=s.id, score=0, max_score=s.max_score))
+            # Create marks only for assigned subjects
+            for subj in [Subject.query.get(sid) for sid in assigned_subject_ids]:
+                if subj:
+                    db.session.add(Mark(report_id=report.id, subject_id=subj.id, score=0, max_score=subj.max_score))
             db.session.flush()
 
         if report.status in ['approved', 'published']:
@@ -217,6 +278,16 @@ def save_subject_marks(class_id):
 def view_report(student_id, class_id):
     student = Student.query.get_or_404(student_id)
     class_obj = Class.query.get_or_404(class_id)
+    teacher = get_teacher_id()
+
+    # Verify teacher is assigned to this class
+    assignments = TeacherSubjectClass.query.filter_by(
+        teacher_id=teacher.id, class_id=class_id
+    ).all()
+    if not assignments:
+        flash('You are not assigned to teach in this class.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
+
     grade = class_obj.grade
     default_term, default_year = periods.get_default_period()
     academic_term = request.args.get('term', default_term)
@@ -229,11 +300,16 @@ def view_report(student_id, class_id):
                         academic_term=academic_term, academic_year=academic_year, status='draft')
         db.session.add(report)
         db.session.flush()
-        for s in (get_subjects_for_grade(grade.id) if grade else Subject.query.all()):
-            db.session.add(Mark(report_id=report.id, subject_id=s.id, score=0, max_score=s.max_score))
+        # Only create marks for assigned subjects
+        assigned_subject_ids = [a.subject_id for a in assignments]
+        for subj_id in assigned_subject_ids:
+            subj = Subject.query.get(subj_id)
+            if subj:
+                db.session.add(Mark(report_id=report.id, subject_id=subj.id, score=0, max_score=subj.max_score))
         db.session.commit()
 
-    subjects = get_subjects_for_grade(grade.id) if grade else Subject.query.all()
+    # Only show assigned subjects
+    subjects = get_assigned_subjects(teacher.id, class_id)
     years = AcademicYear.query.filter_by(is_active=True).order_by(AcademicYear.name.desc()).all()
 
     return render_template('teacher/view_report.html',
@@ -247,6 +323,19 @@ def view_report(student_id, class_id):
 @teacher_required
 def update_report(report_id):
     report = Report.query.get_or_404(report_id)
+    teacher = get_teacher_id()
+
+    # Verify teacher is assigned to this class
+    assignments = TeacherSubjectClass.query.filter_by(
+        teacher_id=teacher.id, class_id=report.class_id
+    ).all()
+    if not assignments:
+        flash('You are not assigned to teach in this class.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
+
+    # Only allow editing marks for assigned subjects
+    assigned_subject_ids = [a.subject_id for a in assignments]
+
     if report.status in ['approved', 'published']:
         flash('Cannot edit a report that has been approved or published.', 'danger')
         return redirect(url_for('teacher.view_report',
@@ -254,6 +343,9 @@ def update_report(report_id):
                                 term=report.academic_term, year=report.academic_year))
 
     for mark in report.marks:
+        # Only update marks for assigned subjects
+        if mark.subject_id not in assigned_subject_ids:
+            continue
         score_key = f'score_{mark.subject_id}'
         score = request.form.get(score_key, 0, type=float)
         max_score = mark.max_score or 100
@@ -280,14 +372,30 @@ def update_report(report_id):
 @teacher_required
 def submit_report(report_id):
     report = Report.query.get_or_404(report_id)
+    teacher = get_teacher_id()
+
+    # Verify teacher is assigned to this class
+    assignments = TeacherSubjectClass.query.filter_by(
+        teacher_id=teacher.id, class_id=report.class_id
+    ).all()
+    if not assignments:
+        flash('You are not assigned to teach in this class.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
+
     if report.status in ['approved', 'published']:
         flash('Report is already approved or published.', 'danger')
         return redirect(url_for('teacher.view_report',
                                 student_id=report.student_id, class_id=report.class_id,
                                 term=report.academic_term, year=report.academic_year))
 
+    # Only allow submitting marks for assigned subjects
+    assigned_subject_ids = [a.subject_id for a in assignments]
+
     # Save marks from form before submitting
     for mark in report.marks:
+        # Only update marks for assigned subjects
+        if mark.subject_id not in assigned_subject_ids:
+            continue
         score_key = f'score_{mark.subject_id}'
         raw = request.form.get(score_key, '')
         if raw == '':
@@ -325,9 +433,23 @@ def submit_report(report_id):
 @teacher_required
 def upload_marks(class_id):
     class_obj = Class.query.get_or_404(class_id)
+    teacher = get_teacher_id()
+
+    # Verify teacher is assigned to this class
+    assignments = TeacherSubjectClass.query.filter_by(
+        teacher_id=teacher.id, class_id=class_id
+    ).all()
+    if not assignments:
+        flash('You are not assigned to teach in this class.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
+
     academic_term = request.form.get('term', 'Term 1')
     academic_year = request.form.get('year', str(datetime.now().year))
     grade = class_obj.grade
+
+    # Only process assigned subjects
+    assigned_subject_ids = [a.subject_id for a in assignments]
+    assigned_subjects = Subject.query.filter(Subject.id.in_(assigned_subject_ids)).all()
 
     if 'file' not in request.files or request.files['file'].filename == '':
         flash('No file selected.', 'danger')
@@ -350,10 +472,10 @@ def upload_marks(class_id):
             flash('Unsupported file format. Please use CSV or Excel.', 'danger')
             return redirect(url_for('teacher.view_class', class_id=class_id, term=academic_term, year=academic_year))
 
-        subjects = get_subjects_for_grade(grade.id) if grade else Subject.query.all()
-        subject_map = {s.code.upper(): s.id for s in subjects}
-        subject_map.update({s.name.upper(): s.id for s in subjects})
-        subject_map.update({f"{s.code.upper()} - {s.name.upper()}": s.id for s in subjects})
+        # Build subject map only for assigned subjects
+        subject_map = {s.code.upper(): s.id for s in assigned_subjects}
+        subject_map.update({s.name.upper(): s.id for s in assigned_subjects})
+        subject_map.update({f"{s.code.upper()} - {s.name.upper()}": s.id for s in assigned_subjects})
 
         count = 0
         for row in reader:
@@ -369,7 +491,8 @@ def upload_marks(class_id):
                                 academic_term=academic_term, academic_year=academic_year, status='draft')
                 db.session.add(report)
                 db.session.flush()
-                for subject in subjects:
+                # Create marks only for assigned subjects
+                for subject in assigned_subjects:
                     db.session.add(Mark(report_id=report.id, subject_id=subject.id, score=0, max_score=subject.max_score))
                 db.session.flush()
 
@@ -419,8 +542,18 @@ def upload_marks(class_id):
 @teacher_required
 def download_template(class_id):
     class_obj = Class.query.get_or_404(class_id)
-    grade = class_obj.grade
-    subjects = get_subjects_for_grade(grade.id) if grade else Subject.query.all()
+    teacher = get_teacher_id()
+
+    # Verify teacher is assigned to this class
+    assignments = TeacherSubjectClass.query.filter_by(
+        teacher_id=teacher.id, class_id=class_id
+    ).all()
+    if not assignments:
+        flash('You are not assigned to teach in this class.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
+
+    # Only include assigned subjects
+    subjects = get_assigned_subjects(teacher.id, class_id)
     students = Student.query.filter_by(class_id=class_id, is_active=True).order_by(Student.admission_number).all()
 
     output = io.StringIO()
@@ -441,10 +574,21 @@ def download_template(class_id):
 @teacher_required
 def export_marks(class_id):
     class_obj = Class.query.get_or_404(class_id)
+    teacher = get_teacher_id()
+
+    # Verify teacher is assigned to this class
+    assignments = TeacherSubjectClass.query.filter_by(
+        teacher_id=teacher.id, class_id=class_id
+    ).all()
+    if not assignments:
+        flash('You are not assigned to teach in this class.', 'danger')
+        return redirect(url_for('teacher.dashboard'))
+
     academic_term = request.args.get('term', 'Term 1')
     academic_year = request.args.get('year', str(datetime.now().year))
-    grade = class_obj.grade
-    subjects = get_subjects_for_grade(grade.id) if grade else Subject.query.all()
+
+    # Only export assigned subjects
+    subjects = get_assigned_subjects(teacher.id, class_id)
     students = Student.query.filter_by(class_id=class_id, is_active=True).order_by(Student.admission_number).all()
 
     output = io.StringIO()

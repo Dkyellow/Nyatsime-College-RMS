@@ -8,13 +8,28 @@ from datetime import datetime
 from app.admin import admin_bp
 from app.models import (
     db, User, Admin, Teacher, Student, Class, Subject, Report, Mark,
-    ClassTeacher, Grade, GradeSubject, AcademicYear,
-    AcademicTerm, SchoolSetting, SchoolLogo
+    Grade, GradeSubject, AcademicYear,
+    AcademicTerm, SchoolSetting, TeacherSubjectClass, AuditLog,
+    StudentSubject, StudentPromotion
 )
 from functools import wraps
 from app.services.pdf_service import invalidate_report_cache
 from app.services import periods
 from app.academic import calculate_grade, generate_username, slugify_name, FIXED_FORMS
+
+
+def log_action(action, resource_type=None, resource_id=None, details=None):
+    """Log a user action to the audit trail."""
+    from flask import request
+    entry = AuditLog(
+        user_id=current_user.id if current_user.is_authenticated else None,
+        action=action,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        details=details,
+        ip_address=request.remote_addr
+    )
+    db.session.add(entry)
 
 
 def admin_required(f):
@@ -363,6 +378,7 @@ def add_student():
         class_id=int(class_id) if class_id else None,
     )
     db.session.add(student)
+    log_action('create', 'student', None, f'Added student {first_name} {last_name} ({admission_number})')
     db.session.commit()
     flash(f"Student enrolled! Portal login: {user.username}", 'success')
     return redirect(url_for('admin.students'))
@@ -392,6 +408,7 @@ def edit_student(id):
         user = _create_student_user(first_name, last_name, password or None)
         student.user_id = user.id
 
+    log_action('update', 'student', student.id, f'Updated student {student.first_name} {student.last_name}')
     db.session.commit()
     flash('Student updated successfully!', 'success')
     return redirect(request.referrer or url_for('admin.students'))
@@ -406,6 +423,7 @@ def delete_student(id):
         user = db.session.get(User, student.user_id)
         if user:
             user.is_active = False
+    log_action('delete', 'student', student.id, f'Deactivated student {student.first_name} {student.last_name}')
     db.session.commit()
     flash('Student removed from the roll (portal access disabled).', 'success')
     return redirect(url_for('admin.students'))
@@ -590,6 +608,7 @@ def add_teacher():
         employee_id=request.form.get('employee_id')
     )
     db.session.add(teacher)
+    log_action('create', 'teacher', None, f'Added teacher {teacher.first_name} {teacher.last_name}')
     db.session.commit()
     flash('Teacher added successfully!', 'success')
     return redirect(url_for('admin.teachers'))
@@ -613,6 +632,7 @@ def edit_teacher(id):
     password = request.form.get('password')
     if password:
         teacher.user.set_password(password)
+    log_action('update', 'teacher', teacher.id, f'Updated teacher {teacher.first_name} {teacher.last_name}')
     db.session.commit()
     flash('Teacher updated successfully!', 'success')
     return redirect(url_for('admin.teachers'))
@@ -623,6 +643,7 @@ def edit_teacher(id):
 def delete_teacher(id):
     teacher = Teacher.query.get_or_404(id)
     user = teacher.user
+    log_action('delete', 'teacher', teacher.id, f'Deleted teacher {teacher.first_name} {teacher.last_name}')
     db.session.delete(teacher)
     db.session.delete(user)
     db.session.commit()
@@ -701,18 +722,24 @@ def add_class():
     name = request.form.get('name')
     section = request.form.get('section')
     grade_id = request.form.get('grade_id', type=int)
-    teacher_ids = request.form.getlist('teacher_ids')
-    class_teacher_id = request.form.get('class_teacher_id', type=int)
 
-    class_obj = Class(name=name, section=section, grade_id=grade_id, class_teacher_id=class_teacher_id or None)
+    class_obj = Class(name=name, section=section, grade_id=grade_id)
     db.session.add(class_obj)
     db.session.flush()
 
+    # Handle teacher-subject assignments
+    teacher_ids = request.form.getlist('teacher_ids')
+    subject_ids = request.form.getlist('subject_ids')
     for teacher_id in teacher_ids:
-        teacher = Teacher.query.get(int(teacher_id))
-        if teacher:
-            class_obj.teachers.append(teacher)
+        for subject_id in subject_ids:
+            assignment = TeacherSubjectClass(
+                teacher_id=int(teacher_id),
+                class_id=class_obj.id,
+                subject_id=int(subject_id)
+            )
+            db.session.add(assignment)
 
+    log_action('create', 'class', class_obj.id, f'Created class {name}')
     db.session.commit()
     flash('Class/stream created successfully!', 'success')
     return redirect(url_for('admin.classes'))
@@ -725,16 +752,21 @@ def edit_class(id):
     class_obj.name = request.form.get('name')
     class_obj.section = request.form.get('section')
     class_obj.grade_id = request.form.get('grade_id', type=int)
-    ctid = request.form.get('class_teacher_id', type=int)
-    class_obj.class_teacher_id = ctid or None
+
+    # Clear existing assignments and recreate
+    TeacherSubjectClass.query.filter_by(class_id=class_obj.id).delete()
     teacher_ids = request.form.getlist('teacher_ids')
-
-    class_obj.teachers.clear()
+    subject_ids = request.form.getlist('subject_ids')
     for teacher_id in teacher_ids:
-        teacher = Teacher.query.get(int(teacher_id))
-        if teacher:
-            class_obj.teachers.append(teacher)
+        for subject_id in subject_ids:
+            assignment = TeacherSubjectClass(
+                teacher_id=int(teacher_id),
+                class_id=class_obj.id,
+                subject_id=int(subject_id)
+            )
+            db.session.add(assignment)
 
+    log_action('update', 'class', class_obj.id, f'Updated class {class_obj.name}')
     db.session.commit()
     flash('Class/stream updated successfully!', 'success')
     return redirect(url_for('admin.classes'))
@@ -841,6 +873,7 @@ def approve_report(id):
     admin_comment = request.form.get('admin_comment')
     if admin_comment:
         report.admin_comment = admin_comment
+    log_action('approve', 'report', report.id, f'Approved report for student #{report.student_id}')
     db.session.commit()
     invalidate_report_cache(report.id)
     flash('Report approved successfully!', 'success')
@@ -853,6 +886,7 @@ def publish_report(id):
     report = Report.query.get_or_404(id)
     report.status = 'published'
     report.published_at = datetime.utcnow()
+    log_action('publish', 'report', report.id, f'Published report for student #{report.student_id}')
     db.session.commit()
     invalidate_report_cache(report.id)
     flash('Report published - now visible to the student portal.', 'success')
@@ -862,13 +896,6 @@ def publish_report(id):
 # ==================== SCHOOL SETTINGS ====================
 
 ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'svg', 'webp'}
-CONTENT_TYPE_MAP = {
-    'png': 'image/png',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'svg': 'image/svg+xml',
-    'webp': 'image/webp',
-}
 
 
 def _allowed_logo(filename):
@@ -893,17 +920,36 @@ def settings():
 
         # Handle logo removal
         if request.form.get('remove_logo'):
-            SchoolLogo.query.delete()
+            old_filename = SchoolSetting.get('logo_filename', '')
+            if old_filename:
+                old_path = os.path.join(
+                    current_app.root_path, 'static', 'uploads', old_filename
+                )
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
             SchoolSetting.set('logo_filename', '')
 
         # Handle logo upload
         logo_file = request.files.get('logo_file')
         if logo_file and logo_file.filename and _allowed_logo(logo_file.filename):
+            # Remove previous logo if one exists
+            old_filename = SchoolSetting.get('logo_filename', '')
+            if old_filename:
+                old_path = os.path.join(
+                    current_app.root_path, 'static', 'uploads', old_filename
+                )
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+
             ext = logo_file.filename.rsplit('.', 1)[1].lower()
             new_filename = f'school_logo_{uuid.uuid4().hex[:8]}.{ext}'
-            content_type = CONTENT_TYPE_MAP.get(ext, 'image/png')
-            logo_data = logo_file.read()
-            SchoolLogo.save_logo(new_filename, content_type, logo_data)
+            upload_dir = os.path.join(current_app.root_path, 'static', 'uploads')
+            os.makedirs(upload_dir, exist_ok=True)
+            logo_file.save(os.path.join(upload_dir, new_filename))
             SchoolSetting.set('logo_filename', new_filename)
         elif logo_file and logo_file.filename and not _allowed_logo(logo_file.filename):
             flash('Unsupported logo format. Please use PNG, JPG, SVG or WebP.', 'danger')
@@ -924,8 +970,579 @@ def invalidate_all_caches():
         invalidate_report_cache(rid)
 
 
-@admin_bp.route('/logo/<int:logo_id>')
-def serve_logo(logo_id):
-    """Serve school logo from the database."""
-    logo = SchoolLogo.query.get_or_404(logo_id)
-    return Response(logo.data, mimetype=logo.content_type)
+# ==================== AUDIT LOGS ====================
+
+@admin_bp.route('/audit-logs')
+@admin_required
+def audit_logs():
+    page = request.args.get('page', 1, type=int)
+    action_filter = request.args.get('action', '')
+    user_id_filter = request.args.get('user_id', type=int)
+
+    query = AuditLog.query
+    if action_filter:
+        query = query.filter_by(action=action_filter)
+    if user_id_filter:
+        query = query.filter_by(user_id=user_id_filter)
+
+    logs = query.order_by(AuditLog.created_at.desc()).paginate(page=page, per_page=20)
+    users = User.query.order_by(User.username).all()
+
+    actions = db.session.query(AuditLog.action).distinct().all()
+    actions = [a[0] for a in actions]
+
+    return render_template('admin/audit_logs.html', logs=logs, users=users,
+                           actions=actions, selected_action=action_filter,
+                           selected_user=user_id_filter)
+
+
+# ==================== STUDENT PERFORMANCE AUDIT ====================
+
+@admin_bp.route('/performance-audit')
+@admin_required
+def performance_audit():
+    year = request.args.get('year', str(datetime.now().year))
+    term = request.args.get('term', 'Term 1')
+    grade_id = request.args.get('grade_id', type=int)
+    class_id = request.args.get('class_id', type=int)
+
+    grades_list = Grade.query.order_by(Grade.display_order).all()
+    classes_list = Class.query.order_by(Class.name).all()
+
+    # Get all reports for the selected period
+    report_query = Report.query.filter_by(academic_year=year, academic_term=term)
+    if grade_id:
+        class_ids = [c.id for c in Grade.query.get(grade_id).classes]
+        report_query = report_query.filter(Report.class_id.in_(class_ids))
+    if class_id:
+        report_query = report_query.filter_by(class_id=class_id)
+
+    reports = report_query.filter(Report.status.in_(['submitted', 'approved', 'published'])).all()
+
+    # Class averages
+    class_stats = {}
+    for report in reports:
+        cid = report.class_id
+        if cid not in class_stats:
+            class_stats[cid] = {'sum': 0, 'count': 0, 'class': report.class_obj}
+        class_stats[cid]['sum'] += report.average
+        class_stats[cid]['count'] += 1
+
+    class_averages = []
+    for cid, data in class_stats.items():
+        avg = data['sum'] / data['count'] if data['count'] else 0
+        class_averages.append({
+            'class': data['class'],
+            'average': round(avg, 1),
+            'student_count': data['count']
+        })
+    class_averages.sort(key=lambda x: x['average'], reverse=True)
+
+    # Top students per class
+    top_students = {}
+    for report in reports:
+        cid = report.class_id
+        if cid not in top_students:
+            top_students[cid] = []
+        top_students[cid].append(report)
+    for cid in top_students:
+        top_students[cid].sort(key=lambda r: r.average, reverse=True)
+        top_students[cid] = top_students[cid][:5]
+
+    # Subject performance
+    subject_stats = {}
+    for report in reports:
+        for mark in report.marks:
+            sid = mark.subject_id
+            if sid not in subject_stats:
+                subject_stats[sid] = {'sum': 0, 'count': 0, 'max': 0, 'min': 100, 'subject': mark.subject}
+            if mark.max_score:
+                pct = (mark.score / mark.max_score) * 100
+            else:
+                pct = mark.score
+            subject_stats[sid]['sum'] += pct
+            subject_stats[sid]['count'] += 1
+            subject_stats[sid]['max'] = max(subject_stats[sid]['max'], pct)
+            subject_stats[sid]['min'] = min(subject_stats[sid]['min'], pct)
+
+    subject_averages = []
+    for sid, data in subject_stats.items():
+        avg = data['sum'] / data['count'] if data['count'] else 0
+        subject_averages.append({
+            'subject': data['subject'],
+            'average': round(avg, 1),
+            'highest': round(data['max'], 1),
+            'lowest': round(data['min'], 1),
+            'count': data['count']
+        })
+    subject_averages.sort(key=lambda x: x['average'], reverse=True)
+
+    # Overall stats
+    all_averages = [r.average for r in reports]
+    overall_avg = sum(all_averages) / len(all_averages) if all_averages else 0
+    overall_highest = max(all_averages) if all_averages else 0
+    overall_lowest = min(all_averages) if all_averages else 0
+
+    return render_template('admin/performance_audit.html',
+                           class_averages=class_averages,
+                           top_students=top_students,
+                           subject_averages=subject_averages,
+                           overall_avg=round(overall_avg, 1),
+                           overall_highest=round(overall_highest, 1),
+                           overall_lowest=round(overall_lowest, 1),
+                           total_reports=len(reports),
+                           selected_year=year, selected_term=term,
+                           selected_grade=grade_id, selected_class=class_id,
+                           grades=grades_list, classes=classes_list)
+
+
+# ==================== TEACHER-SUBJECT-CLASS ASSIGNMENTS ====================
+
+@admin_bp.route('/teacher-assignments')
+@admin_required
+def teacher_assignments():
+    teachers = Teacher.query.order_by(Teacher.last_name).all()
+    classes = Class.query.order_by(Class.name).all()
+    subjects = Subject.query.order_by(Subject.name).all()
+
+    assignments = TeacherSubjectClass.query.all()
+    assignment_map = {}
+    for a in assignments:
+        key = (a.teacher_id, a.class_id)
+        if key not in assignment_map:
+            assignment_map[key] = []
+        assignment_map[key].append(a.subject)
+
+    return render_template('admin/teacher_assignments.html',
+                           teachers=teachers, classes=classes, subjects=subjects,
+                           assignment_map=assignment_map)
+
+
+@admin_bp.route('/teacher-assignments/save', methods=['POST'])
+@admin_required
+def save_teacher_assignments():
+    teacher_id = request.form.get('teacher_id', type=int)
+    class_id = request.form.get('class_id', type=int)
+    subject_ids = request.form.getlist('subject_ids')
+
+    if not teacher_id or not class_id:
+        flash('Please select a teacher and a class.', 'danger')
+        return redirect(url_for('admin.teacher_assignments'))
+
+    # Clear existing assignments for this teacher-class combo
+    TeacherSubjectClass.query.filter_by(teacher_id=teacher_id, class_id=class_id).delete()
+
+    # Add new assignments
+    for subject_id in subject_ids:
+        assignment = TeacherSubjectClass(
+            teacher_id=teacher_id,
+            class_id=class_id,
+            subject_id=int(subject_id)
+        )
+        db.session.add(assignment)
+
+    teacher = Teacher.query.get(teacher_id)
+    class_obj = Class.query.get(class_id)
+    log_action('update', 'teacher_assignment', teacher_id,
+               f'Updated subject assignments for {teacher.first_name} {teacher.last_name} in {class_obj.name}')
+    db.session.commit()
+    flash('Teacher-subject assignments saved successfully!', 'success')
+    return redirect(url_for('admin.teacher_assignments'))
+
+
+# ==================== CLASS LIST IMPORT ====================
+
+@admin_bp.route('/import-class-list', methods=['GET', 'POST'])
+@admin_required
+def import_class_list():
+    if request.method == 'GET':
+        classes = Class.query.order_by(Class.name).all()
+        return render_template('admin/import_class_list.html', classes=classes)
+
+    class_id = request.form.get('class_id', type=int)
+    academic_year = request.form.get('academic_year', str(datetime.now().year))
+
+    if not class_id:
+        flash('Please select a class.', 'danger')
+        return redirect(url_for('admin.import_class_list'))
+
+    class_obj = Class.query.get_or_404(class_id)
+
+    if 'file' not in request.files or request.files['file'].filename == '':
+        flash('No file selected.', 'danger')
+        return redirect(url_for('admin.import_class_list'))
+
+    file = request.files['file']
+    try:
+        if file.filename.endswith('.csv'):
+            content = file.read().decode('utf-8')
+            reader = csv.DictReader(io.StringIO(content))
+        elif file.filename.endswith(('.xlsx', '.xls')):
+            import openpyxl
+            wb = openpyxl.load_workbook(file)
+            ws = wb.active
+            headers = [cell.value for cell in ws[1]]
+            reader = []
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                reader.append(dict(zip(headers, row)))
+        else:
+            flash('Unsupported file format. Please use CSV or Excel.', 'danger')
+            return redirect(url_for('admin.import_class_list'))
+
+        count = 0
+        accounts_created = 0
+        skipped = 0
+
+        for row in reader:
+            first_name = (row.get('first_name') or '').strip()
+            last_name = (row.get('last_name') or '').strip()
+            admission_number = (row.get('admission_number') or '').strip()
+            gender = (row.get('gender') or '').strip()
+            dob = (row.get('date_of_birth') or '').strip()
+
+            if not first_name or not last_name or not admission_number:
+                continue
+
+            # Check if student already exists
+            existing = Student.query.filter_by(admission_number=admission_number).first()
+            if existing:
+                skipped += 1
+                continue
+
+            # Create user account
+            def exists(username):
+                return User.query.filter_by(username=username).first() is not None
+
+            username = generate_username(first_name, last_name, exists)
+            password = f"{slugify_name(first_name)}123"
+            user = User(username=username, email=None, role='student')
+            user.set_password(password)
+            db.session.add(user)
+            db.session.flush()
+            accounts_created += 1
+
+            # Create student
+            student = Student(
+                user_id=user.id,
+                first_name=first_name,
+                last_name=last_name,
+                admission_number=admission_number,
+                gender=gender if gender in ['Male', 'Female'] else None,
+                date_of_birth=datetime.strptime(dob, '%Y-%m-%d').date() if dob else None,
+                class_id=class_id,
+                is_active=True
+            )
+            db.session.add(student)
+            count += 1
+
+        db.session.commit()
+        log_action('import', 'student', class_id,
+                   f'Imported {count} students to {class_obj.name} ({accounts_created} accounts created)')
+
+        msg = f'{count} students imported to {class_obj.name}.'
+        if accounts_created:
+            msg += f' {accounts_created} portal accounts created.'
+        if skipped:
+            msg += f' {skipped} duplicate admission numbers skipped.'
+        flash(msg, 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error importing students: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.students'))
+
+
+@admin_bp.route('/download-class-list-template')
+@admin_required
+def download_class_list_template():
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['first_name', 'last_name', 'admission_number', 'gender', 'date_of_birth'])
+    writer.writerow(['John', 'Doe', 'ADM001', 'Male', '2010-01-15'])
+    writer.writerow(['Jane', 'Smith', 'ADM002', 'Female', '2010-03-22'])
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=class_list_template.csv'}
+    )
+
+
+# ==================== STUDENT PROMOTION ====================
+
+@admin_bp.route('/promote-students', methods=['GET', 'POST'])
+@admin_required
+def promote_students():
+    if request.method == 'GET':
+        classes = Class.query.order_by(Class.name).all()
+        grades = Grade.query.order_by(Grade.display_order).all()
+
+        # Get current year students by grade
+        grade_students = {}
+        for grade in grades:
+            grade_students[grade.id] = {
+                'grade': grade,
+                'students': [],
+                'count': 0
+            }
+            for cls in grade.classes:
+                students = Student.query.filter_by(class_id=cls.id, is_active=True).all()
+                grade_students[grade.id]['students'].extend(students)
+                grade_students[grade.id]['count'] += len(students)
+
+        # Define promotion paths
+        promotion_paths = {
+            'Form 1': 'Form 2',
+            'Form 2': 'Form 3',
+            'Form 3': 'Form 4',
+            'Form 4': None,  # Graduates
+            'Lower 6': 'Upper 6',
+            'Upper 6': None,  # Graduates
+        }
+
+        return render_template('admin/promote_students.html',
+                               classes=classes, grades=grades,
+                               grade_students=grade_students,
+                               promotion_paths=promotion_paths)
+
+    # POST - Process promotion
+    promotion_type = request.form.get('promotion_type', 'auto')
+    academic_year = request.form.get('academic_year', str(datetime.now().year))
+    target_year = str(int(academic_year) + 1)
+
+    # Ensure target year exists
+    target_year_obj = AcademicYear.query.filter_by(name=target_year).first()
+    if not target_year_obj:
+        target_year_obj = AcademicYear(name=target_year, is_active=True)
+        db.session.add(target_year_obj)
+        db.session.flush()
+        # Create terms for new year
+        from app.services import periods
+        term_dates = periods.default_term_dates(target_year)
+        for i, term_name in enumerate(['Term 1', 'Term 2', 'Term 3'], start=1):
+            sd, ed = term_dates[term_name]
+            db.session.add(AcademicTerm(
+                academic_year_id=target_year_obj.id, name=term_name,
+                display_order=i, start_date=sd, end_date=ed,
+            ))
+
+    promotion_paths = {
+        'Form 1': 'Form 2',
+        'Form 2': 'Form 3',
+        'Form 3': 'Form 4',
+        'Form 4': None,
+        'Lower 6': 'Upper 6',
+        'Upper 6': None,
+    }
+
+    promoted = 0
+    graduated = 0
+    needs_manual = []
+
+    # Get selected student IDs
+    student_ids = request.form.getlist('student_ids')
+
+    if promotion_type == 'auto':
+        # Auto-promote all eligible students
+        for grade in Grade.query.all():
+            next_form = promotion_paths.get(grade.name)
+            if next_form is None:
+                # Graduates - skip
+                for cls in grade.classes:
+                    students = Student.query.filter_by(class_id=cls.id, is_active=True).all()
+                    for student in students:
+                        graduated += 1
+                continue
+
+            # Find or create target grade
+            target_grade = Grade.query.filter_by(name=next_form).first()
+            if not target_grade:
+                continue
+
+            for cls in grade.classes:
+                students = Student.query.filter_by(class_id=cls.id, is_active=True).all()
+                for student in students:
+                    # Find or create target class in target grade
+                    target_class = Class.query.filter_by(
+                        grade_id=target_grade.id, name=cls.name
+                    ).first()
+                    if not target_class:
+                        # Create new class with same name in target grade
+                        target_class = Class(
+                            name=cls.name,
+                            section=cls.section,
+                            grade_id=target_grade.id
+                        )
+                        db.session.add(target_class)
+                        db.session.flush()
+
+                    # Record promotion
+                    promotion = StudentPromotion(
+                        student_id=student.id,
+                        from_class_id=cls.id,
+                        to_class_id=target_class.id,
+                        from_grade_id=grade.id,
+                        to_grade_id=target_grade.id,
+                        academic_year=academic_year,
+                        promotion_type='auto'
+                    )
+                    db.session.add(promotion)
+
+                    # Update student
+                    student.class_id = target_class.id
+                    promoted += 1
+
+    elif promotion_type == 'manual' and student_ids:
+        # Promote selected students
+        for sid in student_ids:
+            student = Student.query.get(int(sid))
+            if not student or not student.class_obj:
+                continue
+
+            current_grade = student.class_obj.grade
+            next_form = promotion_paths.get(current_grade.name)
+
+            if next_form is None:
+                graduated += 1
+                continue
+
+            target_grade = Grade.query.filter_by(name=next_form).first()
+            if not target_grade:
+                continue
+
+            # Find or create target class
+            target_class = Class.query.filter_by(
+                grade_id=target_grade.id, name=student.class_obj.name
+            ).first()
+            if not target_class:
+                target_class = Class(
+                    name=student.class_obj.name,
+                    section=student.class_obj.section,
+                    grade_id=target_grade.id
+                )
+                db.session.add(target_class)
+                db.session.flush()
+
+            promotion = StudentPromotion(
+                student_id=student.id,
+                from_class_id=student.class_id,
+                to_class_id=target_class.id,
+                from_grade_id=current_grade.id,
+                to_grade_id=target_grade.id,
+                academic_year=academic_year,
+                promotion_type='manual'
+            )
+            db.session.add(promotion)
+            student.class_id = target_class.id
+            promoted += 1
+
+    log_action('promote', 'student', None,
+               f'Promoted {promoted} students, {graduated} graduated')
+
+    db.session.commit()
+    flash(f'Promotion complete: {promoted} students promoted, {graduated} students graduated.', 'success')
+    return redirect(url_for('admin.promote_students'))
+
+
+# ==================== FORM 3 TRANSITION ====================
+
+@admin_bp.route('/form3-transition', methods=['GET', 'POST'])
+@admin_required
+def form3_transition():
+    if request.method == 'GET':
+        # Get Form 2 classes
+        form2_grade = Grade.query.filter_by(name='Form 2').first()
+        form2_classes = Class.query.filter_by(grade_id=form2_grade.id).all() if form2_grade else []
+
+        # Get Form 3 classes (target)
+        form3_grade = Grade.query.filter_by(name='Form 3').first()
+        form3_classes = Class.query.filter_by(grade_id=form3_grade.id).all() if form3_grade else []
+
+        # Get Form 2 students
+        form2_students = []
+        for cls in form2_classes:
+            students = Student.query.filter_by(class_id=cls.id, is_active=True).all()
+            for s in students:
+                form2_students.append({'student': s, 'class': cls})
+
+        # Available streams for Form 3
+        streams = [
+            ('Science', 'Form 3 Science'),
+            ('Arts', 'Form 3 Arts'),
+            ('Commercials', 'Form 3 Commerce'),
+        ]
+
+        # Get subjects for each stream
+        form3_grade = Grade.query.filter_by(name='Form 3').first()
+        form3_subjects = form3_grade.subjects if form3_grade else []
+
+        return render_template('admin/form3_transition.html',
+                               form2_students=form2_students,
+                               form3_classes=form3_classes,
+                               streams=streams,
+                               form3_subjects=form3_subjects)
+
+    # POST - Process transition
+    academic_year = request.form.get('academic_year', str(datetime.now().year))
+    form3_grade = Grade.query.filter_by(name='Form 3').first()
+
+    if not form3_grade:
+        flash('Form 3 grade not found.', 'danger')
+        return redirect(url_for('admin.form3_transition'))
+
+    transitions = request.form.getlist('transitions')
+    promoted = 0
+
+    for transition in transitions:
+        if not transition:
+            continue
+        # Format: student_id:stream
+        parts = transition.split(':')
+        if len(parts) != 2:
+            continue
+        student_id = int(parts[0])
+        stream = parts[1]
+
+        student = Student.query.get(student_id)
+        if not student:
+            continue
+
+        # Find or create target class
+        class_name = f'Form 3 {stream}'
+        target_class = Class.query.filter_by(
+            grade_id=form3_grade.id, name=class_name
+        ).first()
+        if not target_class:
+            target_class = Class(
+                name=class_name,
+                section=stream,
+                grade_id=form3_grade.id
+            )
+            db.session.add(target_class)
+            db.session.flush()
+
+        # Record promotion
+        promotion = StudentPromotion(
+            student_id=student.id,
+            from_class_id=student.class_id,
+            to_class_id=target_class.id,
+            from_grade_id=Grade.query.filter_by(name='Form 2').first().id,
+            to_grade_id=form3_grade.id,
+            academic_year=academic_year,
+            promotion_type='manual',
+            notes=f'Stream: {stream}'
+        )
+        db.session.add(promotion)
+
+        # Update student class
+        student.class_id = target_class.id
+        promoted += 1
+
+    log_action('promote', 'student', None,
+               f'Form 3 transition: {promoted} students placed into streams')
+
+    db.session.commit()
+    flash(f'Form 3 transition complete: {promoted} students placed into streams.', 'success')
+    return redirect(url_for('admin.form3_transition'))

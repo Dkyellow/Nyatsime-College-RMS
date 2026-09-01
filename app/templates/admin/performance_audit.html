@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Performance Audit - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}
+<span class="school-chip"><img src="{{ SCHOOL_LOGO_URL }}" alt=""> Performance Audit</span>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h4 class="page-title">Student Performance Audit</h4>
+        <p class="page-sub">Analyze student performance across classes and subjects.</p>
+    </div>
+</div>
+
+<form method="GET" class="filter-bar">
+    <div class="filter-field">
+        <label>Academic Year</label>
+        <input type="text" class="form-control" name="year" value="{{ selected_year }}" placeholder="e.g. 2026">
+    </div>
+    <div class="filter-field">
+        <label>Term</label>
+        <select class="form-select" name="term">
+            {% for t in ['Term 1', 'Term 2', 'Term 3'] %}
+            <option value="{{ t }}" {% if selected_term == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-field">
+        <label>Grade</label>
+        <select class="form-select" name="grade_id">
+            <option value="">All Grades</option>
+            {% for grade in grades %}
+            <option value="{{ grade.id }}" {% if selected_grade == grade.id %}selected{% endif %}>{{ grade.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-field">
+        <label>Class</label>
+        <select class="form-select" name="class_id">
+            <option value="">All Classes</option>
+            {% for class in classes %}
+            <option value="{{ class.id }}" {% if selected_class == class.id %}selected{% endif %}>{{ class.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-field btns">
+        <label>&nbsp;</label>
+        <button type="submit" class="btn btn-primary w-100">Analyze</button>
+    </div>
+</form>
+
+<!-- Overall Summary -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card-panel text-center p-4">
+            <div class="text-muted small mb-1">Total Reports</div>
+            <h3 class="mb-0">{{ total_reports }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-panel text-center p-4">
+            <div class="text-muted small mb-1">Overall Average</div>
+            <h3 class="mb-0 text-primary">{{ overall_avg }}%</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-panel text-center p-4">
+            <div class="text-muted small mb-1">Highest Average</div>
+            <h3 class="mb-0 text-success">{{ overall_highest }}%</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-panel text-center p-4">
+            <div class="text-muted small mb-1">Lowest Average</div>
+            <h3 class="mb-0 text-danger">{{ overall_lowest }}%</h3>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Class Performance -->
+    <div class="col-lg-6">
+        <div class="card-panel h-100">
+            <div class="panel-head">
+                <h6 class="panel-title"><i class="bi bi-bar-chart me-2"></i>Class Performance</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table clean-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Class</th>
+                            <th>Average</th>
+                            <th>Students</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in class_averages %}
+                        <tr>
+                            <td><span class="badge bg-{% if loop.index <= 3 %}success{% else %}secondary{% endif %}">{{ loop.index }}</span></td>
+                            <td><strong>{{ item.class.name }}</strong></td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1 me-2" style="height: 8px; max-width: 100px;">
+                                        <div class="progress-bar bg-{% if item.average >= 70 %}success{% elif item.average >= 50 %}warning{% else %}danger{% endif %}" style="width: {{ item.average }}%"></div>
+                                    </div>
+                                    <span>{{ item.average }}%</span>
+                                </div>
+                            </td>
+                            <td>{{ item.student_count }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="empty-row">No data available.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subject Performance -->
+    <div class="col-lg-6">
+        <div class="card-panel h-100">
+            <div class="panel-head">
+                <h6 class="panel-title"><i class="bi bi-book me-2"></i>Subject Performance</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table clean-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Subject</th>
+                            <th>Average</th>
+                            <th>Highest</th>
+                            <th>Lowest</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in subject_averages %}
+                        <tr>
+                            <td><span class="badge bg-{% if loop.index <= 3 %}success{% else %}secondary{% endif %}">{{ loop.index }}</span></td>
+                            <td><strong>{{ item.subject.name }}</strong></td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1 me-2" style="height: 8px; max-width: 80px;">
+                                        <div class="progress-bar bg-{% if item.average >= 70 %}success{% elif item.average >= 50 %}warning{% else %}danger{% endif %}" style="width: {{ item.average }}%"></div>
+                                    </div>
+                                    <span>{{ item.average }}%</span>
+                                </div>
+                            </td>
+                            <td><span class="text-success">{{ item.highest }}%</span></td>
+                            <td><span class="text-danger">{{ item.lowest }}%</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="empty-row">No data available.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Students per Class -->
+<div class="card-panel mt-4">
+    <div class="panel-head">
+        <h6 class="panel-title"><i class="bi bi-trophy me-2"></i>Top 5 Students per Class</h6>
+    </div>
+    <div class="row g-3">
+        {% for class_id, students in top_students.items() %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card-panel">
+                <h6 class="mb-3">{{ students[0].class_obj.name if students else 'Class' }}</h6>
+                {% for report in students %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <span class="badge bg-{% if loop.index == 1 %}warning{% elif loop.index == 2 %}secondary{% elif loop.index == 3 %}info{% else %}light text-dark{% endif %} me-2">{{ loop.index }}</span>
+                        <span>{{ report.student.first_name }} {{ report.student.last_name }}</span>
+                    </div>
+                    <span class="fw-bold {% if report.average >= 70 %}text-success{% elif report.average >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ report.average|round(1) }}%
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12"><div class="empty-row">No student data for this period.</div></div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

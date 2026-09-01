@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from flask import Flask, url_for
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import Config
@@ -40,9 +40,9 @@ def create_app():
                 return default
 
         # ── Core school information ──────────────────────────────────────────
-        school_name    = setting('school_name',    'NYATSIME COLLEGE')
+        school_name    = setting('school_name',    'HILLSIDE ACADEMY')
         school_motto   = setting('school_motto',   'Knowledge | Integrity | Excellence')
-        school_address = setting('school_address', 'P.O. Box Nyatsime, Zimbabwe')
+        school_address = setting('school_address', 'P.O. Box Hillside, Zimbabwe')
         school_phone   = setting('school_phone',   '')
         school_email   = setting('school_email',   '')
         school_short_name = setting('school_short_name', '')
@@ -52,8 +52,8 @@ def create_app():
         report_footer  = setting('report_footer',  '')
 
         # ── Brand colours ────────────────────────────────────────────────────
-        primary_color = setting('primary_color', '#0370b1')
-        accent_color  = setting('accent_color',  '#F0B429')
+        primary_color = setting('primary_color', '#1C3480')
+        accent_color  = setting('accent_color',  '#7A1F2B')
 
         # Derive a darker shade of primary for hover states (simple offset)
         def _hex_darken(hex_color, factor=0.85):
@@ -95,12 +95,11 @@ def create_app():
 </style>"""
 
         # ── School logo ──────────────────────────────────────────────────────
-        from app.models import SchoolLogo
-        logo = SchoolLogo.get_current()
-        if logo:
-            school_logo_url = url_for('admin.serve_logo', logo_id=logo.id)
+        logo_filename = setting('logo_filename', '')
+        if logo_filename:
+            school_logo_url = f'/static/uploads/{logo_filename}'
         else:
-            school_logo_url = '/static/img/nyatsime-crest.png'
+            school_logo_url = '/static/img/hillside-academy-crest.png'
 
         return dict(
             User=User,

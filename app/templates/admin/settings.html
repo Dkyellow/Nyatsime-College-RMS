@@ -23,7 +23,7 @@
             <label class="form-label">School Name <span class="text-danger">*</span></label>
             <input type="text" class="form-control" name="school_name"
                    value="{{ values.school_name or '' }}" required
-                   placeholder="e.g. NYATSIME COLLEGE" id="inp_school_name">
+                   placeholder="e.g. HILLSIDE ACADEMY" id="inp_school_name">
         </div>
         <div class="col-md-6">
             <label class="form-label">Short Name / Subtitle</label>
@@ -122,11 +122,11 @@
                 <label class="form-label fw-semibold">Primary Brand Colour</label>
                 <div class="color-swatch-row">
                     <input type="color" name="primary_color" id="primaryColorPicker"
-                           value="{{ values.primary_color or '#0370b1' }}">
+                           value="{{ values.primary_color or '#1C3480' }}">
                     <div class="color-swatch-preview" id="primarySwatch"
-                         style="background:{{ values.primary_color or '#0370b1' }}"></div>
+                         style="background:{{ values.primary_color or '#1C3480' }}"></div>
                     <div>
-                        <div class="fw-semibold small" id="primaryColorHex">{{ values.primary_color or '#0370b1' }}</div>
+                        <div class="fw-semibold small" id="primaryColorHex">{{ values.primary_color or '#1C3480' }}</div>
                         <div class="text-muted" style="font-size:.76rem">Sidebar, buttons, links, active nav</div>
                     </div>
                 </div>
@@ -136,11 +136,11 @@
                 <label class="form-label fw-semibold">Accent / Highlight Colour</label>
                 <div class="color-swatch-row">
                     <input type="color" name="accent_color" id="accentColorPicker"
-                           value="{{ values.accent_color or '#F0B429' }}">
+                           value="{{ values.accent_color or '#7A1F2B' }}">
                     <div class="color-swatch-preview" id="accentSwatch"
-                         style="background:{{ values.accent_color or '#F0B429' }}"></div>
+                         style="background:{{ values.accent_color or '#7A1F2B' }}"></div>
                     <div>
-                        <div class="fw-semibold small" id="accentColorHex">{{ values.accent_color or '#F0B429' }}</div>
+                        <div class="fw-semibold small" id="accentColorHex">{{ values.accent_color or '#7A1F2B' }}</div>
                         <div class="text-muted" style="font-size:.76rem">Active indicator, badges, report accents</div>
                     </div>
                 </div>

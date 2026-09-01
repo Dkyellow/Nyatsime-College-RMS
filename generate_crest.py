@@ -1,7 +1,7 @@
-﻿"""Generate the Nyatsime College crest PNG used in printable/PDF report cards.
+﻿"""Generate the Hillside Academy crest PNG used in printable/PDF report cards.
 
 Run once:  python generate_crest.py
-Output:    app/static/img/nyatsime-crest.png
+Output:    app/static/img/hillside-academy-crest.png
 """
 import math
 import os
@@ -19,7 +19,7 @@ MAROON = (122, 31, 43, 255)
 CREAM = (255, 243, 214, 255)
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                   'app', 'static', 'img', 'nyatsime-crest.png')
+                   'app', 'static', 'img', 'hillside-academy-crest.png')
 
 
 def pt(x, y):
@@ -105,7 +105,7 @@ def main():
     d.polygon([pt(x, y) for x, y in ribbon], fill=GOLD_LIGHT)
 
     font = load_font(11)
-    text = 'NYATSIME'
+    text = 'HILLSIDE'
     bbox = d.textbbox((0, 0), text, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     d.text((100 * S - tw / 2 - bbox[0], 176 * S - th / 2 - bbox[1]),

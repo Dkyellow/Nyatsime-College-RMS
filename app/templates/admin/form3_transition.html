@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Form 3 Transition - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}
+<span class="school-chip"><img src="{{ SCHOOL_LOGO_URL }}" alt=""> Form 3 Transition</span>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h4 class="page-title">Form 3 Transition</h4>
+        <p class="page-sub">Place Form 2 students into streams (Science, Arts, Commercials) for Form 3.</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card-panel text-center p-4">
+            <h6 class="mb-2">Science Stream</h6>
+            <small class="text-muted">Core: Math, Physics, Chemistry, Biology</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-panel text-center p-4">
+            <h6 class="mb-2">Arts Stream</h6>
+            <small class="text-muted">Core: Literature, History, Geography, Shona</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-panel text-center p-4">
+            <h6 class="mb-2">Commerce Stream</h6>
+            <small class="text-muted">Core: Accounts, Commerce, Economics, Business Studies</small>
+        </div>
+    </div>
+</div>
+
+<form method="POST">
+    <input type="hidden" name="academic_year" value="{{ CURRENT_YEAR }}">
+
+    <div class="card-panel mb-4">
+        <div class="panel-head">
+            <h6 class="panel-title"><i class="bi bi-people me-2"></i>Form 2 Students</h6>
+        </div>
+        <p class="text-muted small mb-3">Select the stream for each student moving to Form 3.</p>
+
+        <div class="table-responsive">
+            <table class="table clean-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Admission No.</th>
+                        <th>Name</th>
+                        <th>Current Class</th>
+                        <th style="width: 250px;">Target Stream</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in form2_students %}
+                    <tr>
+                        <td><span class="id-chip">{{ item.student.admission_number }}</span></td>
+                        <td>{{ item.student.first_name }} {{ item.student.last_name }}</td>
+                        <td>{{ item.class.name }}</td>
+                        <td>
+                            <select class="form-select form-select-sm" name="transitions">
+                                <option value="">-- Select Stream --</option>
+                                {% for stream_key, stream_name in streams %}
+                                <option value="{{ item.student.id }}:{{ stream_key }}">{{ stream_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="empty-row">No Form 2 students found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if form2_students %}
+    <div class="d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary btn-lg" data-confirm="Place selected students into Form 3 streams?">
+            <i class="bi bi-arrow-right-circle me-2"></i>Place Students in Streams
+        </button>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}

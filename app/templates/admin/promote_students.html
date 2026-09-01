@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Promote Students - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}
+<span class="school-chip"><img src="{{ SCHOOL_LOGO_URL }}" alt=""> Promote Students</span>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h4 class="page-title">Student Promotion</h4>
+        <p class="page-sub">Promote students to the next form at the end of the academic year.</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card-panel text-center p-4">
+            <div class="text-muted small mb-1">Promotion Path</div>
+            <div class="small">
+                Form 1 → Form 2<br>
+                Form 2 → Form 3<br>
+                Form 3 → Form 4<br>
+                Form 4 → <span class="text-warning">Graduate</span><br>
+                Lower 6 → Upper 6<br>
+                Upper 6 → <span class="text-warning">Graduate</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card-panel">
+            <div class="panel-head">
+                <h6 class="panel-title"><i class="bi bi-gear me-2"></i>Promotion Settings</h6>
+            </div>
+            <form method="POST" id="promotionForm">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Academic Year</label>
+                        <input type="text" class="form-control" name="academic_year" value="{{ CURRENT_YEAR }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Promotion Type</label>
+                        <select class="form-select" name="promotion_type" id="promotionType">
+                            <option value="auto">Auto-Promote All</option>
+                            <option value="manual">Select Students</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100" data-confirm="Are you sure you want to promote students?">
+                            <i class="bi bi-arrow-up-circle me-2"></i>Promote Students
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Students by Grade -->
+<form method="POST" id="studentSelectionForm">
+    <input type="hidden" name="academic_year" value="{{ CURRENT_YEAR }}">
+    <input type="hidden" name="promotion_type" id="promotionTypeHidden" value="auto">
+
+    {% for grade_id, data in grade_students.items() %}
+    {% if data.count > 0 %}
+    <div class="card-panel mb-3">
+        <div class="panel-head d-flex justify-content-between align-items-center">
+            <h6 class="panel-title mb-0">
+                {{ data.grade.name }}
+                <span class="badge bg-secondary ms-2">{{ data.count }} students</span>
+            </h6>
+            {% set next_form = promotion_paths.get(data.grade.name) %}
+            {% if next_form %}
+            <span class="text-muted small">
+                <i class="bi bi-arrow-right me-1"></i>→ {{ next_form }}
+            </span>
+            {% else %}
+            <span class="badge bg-warning">Graduates</span>
+            {% endif %}
+        </div>
+        <div class="table-responsive">
+            <table class="table clean-table mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input select-all" data-grade="{{ grade_id }}">
+                        </th>
+                        <th>Admission No.</th>
+                        <th>Name</th>
+                        <th>Class</th>
+                        <th>Gender</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in data.students %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input student-checkbox"
+                                   name="student_ids" value="{{ student.id }}"
+                                   data-grade="{{ grade_id }}">
+                        </td>
+                        <td><span class="id-chip">{{ student.admission_number }}</span></td>
+                        <td>{{ student.first_name }} {{ student.last_name }}</td>
+                        <td>{{ student.class_obj.name if student.class_obj else '-' }}</td>
+                        <td>{{ student.gender or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.select-all').forEach(btn => {
+    btn.addEventListener('change', function() {
+        const grade = this.dataset.grade;
+        const checked = this.checked;
+        document.querySelectorAll(`.student-checkbox[data-grade="${grade}"]`).forEach(cb => {
+            cb.checked = checked;
+        });
+    });
+});
+
+document.getElementById('promotionType').addEventListener('change', function() {
+    document.getElementById('promotionTypeHidden').value = this.value;
+});
+
+document.getElementById('promotionForm').addEventListener('submit', function(e) {
+    if (document.getElementById('promotionType').value === 'manual') {
+        e.preventDefault();
+        const form = document.getElementById('studentSelectionForm');
+        form.submit();
+    }
+});
+</script>
+{% endblock %}

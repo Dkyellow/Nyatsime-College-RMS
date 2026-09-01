@@ -10,10 +10,10 @@
        They are overridden at runtime by the BRAND_CSS block
        injected by the context processor for each school. */
     --brand-dark:         #0E1B3A;   /* sidebar / dark neutral */
-    --brand-primary:      #0370b1;   /* primary colour */
+    --brand-primary:      #1C3480;   /* primary colour */
     --brand-primary-dark: #025a8e;   /* primary hover / darker shade */
     --brand-primary-soft: rgba(3,112,177,.12); /* soft tint */
-    --brand-accent:       #F0B429;   /* accent / highlight colour */
+    --brand-accent:       #7A1F2B;   /* accent / highlight colour */
     --brand-accent-soft:  rgba(240,180,41,.15);
     --brand-tertiary:     #7A1F2B;   /* subtle crest accent */
 
