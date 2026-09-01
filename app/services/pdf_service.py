@@ -627,7 +627,7 @@ def _get_logo_path():
         current_app.root_path,
         "static",
         "img",
-        "hillside-academy-crest.png"
+        "nyatsime-crest.png"
     )
 
 
@@ -957,7 +957,7 @@ def generate_report_card_pdf(report):
 
         school_name=setting(
             "school_name",
-            "HILLSIDE ACADEMY"
+            "NYATSIME COLLEGE"
         ),
 
         school_address=setting(

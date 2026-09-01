@@ -40,9 +40,9 @@ def create_app():
                 return default
 
         # ── Core school information ──────────────────────────────────────────
-        school_name    = setting('school_name',    'HILLSIDE ACADEMY')
+        school_name    = setting('school_name',    'NYATSIME COLLEGE')
         school_motto   = setting('school_motto',   'Knowledge | Integrity | Excellence')
-        school_address = setting('school_address', 'P.O. Box Hillside, Zimbabwe')
+        school_address = setting('school_address', 'P.O. Box Nyatsime, Zimbabwe')
         school_phone   = setting('school_phone',   '')
         school_email   = setting('school_email',   '')
         school_short_name = setting('school_short_name', '')
@@ -99,7 +99,7 @@ def create_app():
         if logo_filename:
             school_logo_url = f'/static/uploads/{logo_filename}'
         else:
-            school_logo_url = '/static/img/hillside-academy-crest.png'
+            school_logo_url = '/static/img/nyatsime-crest.png'
 
         return dict(
             User=User,

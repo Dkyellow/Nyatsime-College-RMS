@@ -1,4 +1,4 @@
-﻿"""Seed the Hillside College secondary school database with demonstration data.
+﻿"""Seed the Nyatsime College secondary school database with demonstration data.
 
 Run:  python seed.py
 """
@@ -83,7 +83,7 @@ def seed_database():
 
         print("Seeding users...")
         # Admin
-        admin_user = User(username='admin', email='admin@Hillside.ac.zw', role='admin')
+        admin_user = User(username='admin', email='admin@nyatsime.ac.zw', role='admin')
         admin_user.set_password('admin123')
         db.session.add(admin_user)
         db.session.flush()
@@ -93,10 +93,10 @@ def seed_database():
         # Teachers
         teachers = []
         teacher_data = [
-            ('teacher1', 'teacher123', 'r.chikwanha@Hillside.ac.zw', 'Rudo', 'Chikwanha', 'NYT-T01', '+263 772 000 011'),
-            ('teacher2', 'teacher123', 'b.ndlovu@Hillside.ac.zw', 'Blessing', 'Ndlovu', 'NYT-T02', '+263 772 000 012'),
-            ('teacher3', 'teacher123', 'f.mhike@Hillside.ac.zw', 'Farai', 'Mhike', 'NYT-T03', '+263 772 000 013'),
-            ('teacher4', 'teacher123', 's.mutasa@Hillside.ac.zw', 'Sarudzai', 'Mutasa', 'NYT-T04', '+263 772 000 014'),
+            ('teacher1', 'teacher123', 'r.chikwanha@nyatsime.ac.zw', 'Rudo', 'Chikwanha', 'NYT-T01', '+263 772 000 011'),
+            ('teacher2', 'teacher123', 'b.ndlovu@nyatsime.ac.zw', 'Blessing', 'Ndlovu', 'NYT-T02', '+263 772 000 012'),
+            ('teacher3', 'teacher123', 'f.mhike@nyatsime.ac.zw', 'Farai', 'Mhike', 'NYT-T03', '+263 772 000 013'),
+            ('teacher4', 'teacher123', 's.mutasa@nyatsime.ac.zw', 'Sarudzai', 'Mutasa', 'NYT-T04', '+263 772 000 014'),
         ]
         for username, password, email, first, last, emp_id, phone in teacher_data:
             user = User(username=username, email=email, role='teacher')
@@ -178,7 +178,7 @@ def seed_database():
             else:
                 uname = generate_username(first, last, username_exists)
             used_usernames.add(uname)
-            user = User(username=uname, email=f'{uname}@student.Hillside.ac.zw', role='student')
+            user = User(username=uname, email=f'{uname}@student.nyatsime.ac.zw', role='student')
             user.set_password('student123')
             db.session.add(user)
             db.session.flush()
@@ -246,7 +246,7 @@ def seed_database():
                         report.grade_position = i
 
         db.session.commit()
-        print("Hillside College database seeded successfully!")
+        print("Nyatsime College database seeded successfully!")
         print(f"Demo login: student1 / student123 (any student)")
 
 

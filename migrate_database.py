@@ -9,7 +9,7 @@ Changes applied:
   - Drops grading_scales table if present
   - Ensures fixed secondary school forms exist
   - Seeds default subjects, grade-subject mappings, academic year/terms
-  - Seeds all SchoolSetting defaults (Hillside Academy) if not yet configured
+- Seeds all SchoolSetting defaults (Nyatsime College) if not yet configured
 
 Run:  python migrate_database.py
 """
@@ -256,7 +256,7 @@ def seed_structure(app):
         # Default report template
         if ReportTemplate.query.count() == 0:
             db.session.add(ReportTemplate(
-                name='Hillside Academy Secondary Report Card',
+                name='Nyatsime College Secondary Report Card',
                 template_type='secondary',
                 description='Official academic report card for all forms',
                 is_default=True))
@@ -264,9 +264,9 @@ def seed_structure(app):
 
         # Brand defaults
         defaults = {
-            'school_name': 'HILLSIDE ACADEMY',
+            'school_name': 'NYATSIME COLLEGE',
             'school_motto': 'Knowledge | Integrity | Excellence',
-            'school_address': 'P.O. Box Hillside, Zimbabwe',
+            'school_address': 'P.O. Box Nyatsime, Zimbabwe',
             'school_phone': '',
             'school_email': '',
         }
@@ -295,12 +295,12 @@ def seed_structure(app):
 
 
 def seed_school_settings(app):
-    """Populate SchoolSetting with Hillside Academy defaults for any keys not yet set."""
+    """Populate SchoolSetting with Nyatsime College defaults for any keys not yet set."""
     defaults = {
-        'school_name':       'HILLSIDE ACADEMY',
+        'school_name':       'NYATSIME COLLEGE',
         'school_short_name': 'Secondary School',
         'school_motto':      'Knowledge | Integrity | Excellence',
-        'school_address':    'P.O. Box Hillside, Zimbabwe',
+        'school_address':    'P.O. Box Nyatsime, Zimbabwe',
         'school_city':       'Harare',
         'school_country':    'Zimbabwe',
         'school_phone':      '',
