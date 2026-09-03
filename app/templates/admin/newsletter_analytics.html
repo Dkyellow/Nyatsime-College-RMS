@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Newsletter Analytics - {{ SCHOOL_NAME }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h4 class="page-title">Newsletter Analytics</h4>
+        <p class="page-sub">{{ newsletter.title }}</p>
+    </div>
+</div>
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card-panel text-center">
+            <div class="text-muted small">Published</div>
+            <div class="stat-value">{{ newsletter.published_at.strftime('%d %b %Y') if newsletter.published_at else 'N/A' }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-panel text-center">
+            <div class="text-muted small">Reads</div>
+            <div class="stat-value">{{ read_count }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-panel text-center">
+            <div class="text-muted small">Read Rate</div>
+            <div class="stat-value">{{ '%.1f'|format(read_rate) }}%</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

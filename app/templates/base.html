@@ -102,6 +102,9 @@
                 </li>
 
                 <li class="sidebar-section"><span>Administration</span></li>
+                <li class="{% if request.endpoint in ['admin.newsletters', 'admin.create_newsletter', 'admin.edit_newsletter', 'admin.preview_newsletter', 'admin.newsletter_analytics'] %}active{% endif %}">
+                    <a href="{{ url_for('admin.newsletters') }}"><i class="bi bi-megaphone"></i><span class="nav-label">Newsletters</span></a>
+                </li>
                 <li class="{% if request.endpoint == 'admin.teacher_assignments' %}active{% endif %}">
                     <a href="{{ url_for('admin.teacher_assignments') }}"><i class="bi bi-person-check"></i><span class="nav-label">Teacher Assignments</span></a>
                 </li>
@@ -130,6 +133,9 @@
                 </li>
                 <li class="{% if request.endpoint == 'student.results' %}active{% endif %}">
                     <a href="{{ url_for('student.results') }}"><i class="bi bi-bar-chart"></i><span class="nav-label">My Results</span></a>
+                </li>
+                <li class="{% if request.endpoint in ['student.student_newsletters', 'student.student_view_newsletter'] %}active{% endif %}">
+                    <a href="{{ url_for('student.student_newsletters') }}"><i class="bi bi-newspaper"></i><span class="nav-label">Newsletters</span></a>
                 </li>
                 {% endif %}
             </ul>

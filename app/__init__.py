@@ -23,11 +23,16 @@ def create_app():
     from app.admin import admin_bp
     from app.teacher import teacher_bp
     from app.student import student_bp
+    from app.newsletter import newsletter_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(teacher_bp, url_prefix='/teacher')
     app.register_blueprint(student_bp, url_prefix='/student')
+    app.register_blueprint(newsletter_bp)
+
+    with app.app_context():
+        db.create_all()
 
     @app.context_processor
     def inject_globals():

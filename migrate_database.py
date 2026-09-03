@@ -284,7 +284,7 @@ def seed_structure(app):
             for s in students_without_users:
                 uname = generate_username(s.first_name, s.last_name, username_exists)
                 used_usernames.add(uname)
-                user = User(username=uname, email=f'{uname}@student.hillside.ac.zw', role='student')
+                user = User(username=uname, email=f'{uname}@student.nyatsime.ac.zw', role='student')
                 user.set_password('student123')
                 db.session.add(user)
                 db.session.flush()

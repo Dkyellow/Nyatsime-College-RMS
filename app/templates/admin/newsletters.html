@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Newsletters - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}<span class="school-chip"><img src="{{ SCHOOL_LOGO_URL }}" alt=""> Newsletters</span>{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h4 class="page-title">Newsletters</h4>
+        <p class="page-sub">Keep students and families informed with school updates.</p>
+    </div>
+    <div class="head-actions">
+        <a href="{{ url_for('admin.create_newsletter') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Create Newsletter</a>
+    </div>
+</div>
+
+<div class="card-panel mb-4">
+    <form method="GET" class="row g-2 align-items-center">
+        <div class="col-md-6">
+            <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Search newsletters...">
+        </div>
+        <div class="col-md-3">
+            <select class="form-select" name="status">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                <option value="scheduled" {% if status_filter == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                <option value="published" {% if status_filter == 'published' %}selected{% endif %}>Published</option>
+                <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived</option>
+            </select>
+        </div>
+        <div class="col-md-3 text-md-end">
+            <button type="submit" class="btn btn-outline-primary">Filter</button>
+        </div>
+    </form>
+</div>
+
+<div class="card-panel">
+    <div class="table-responsive">
+        <table class="table clean-table mb-0">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Audience</th>
+                    <th>Status</th>
+                    <th>Published</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in newsletters %}
+                <tr>
+                    <td>
+                        <strong>{{ item.title }}</strong><br>
+                        <small class="text-muted">{{ item.subtitle or 'No subtitle' }}</small>
+                    </td>
+                    <td>{{ item.audience|title }}</td>
+                    <td><span class="status-badge {{ item.status }}">{{ item.status|title }}</span></td>
+                    <td>{{ item.published_at.strftime('%d %b %Y') if item.published_at else '-' }}</td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('admin.admin_view_newsletter', id=item.id) }}" class="btn btn-outline-secondary">View</a>
+                            <a href="{{ url_for('admin.edit_newsletter', id=item.id) }}" class="btn btn-outline-primary">Edit</a>
+                            <form method="POST" action="{{ url_for('admin.duplicate_newsletter', id=item.id) }}" class="d-inline"> <button type="submit" class="btn btn-outline-dark">Duplicate</button></form>
+                            {% if item.status != 'archived' %}<form method="POST" action="{{ url_for('admin.archive_newsletter', id=item.id) }}" class="d-inline"> <button type="submit" class="btn btn-outline-warning">Archive</button></form>{% endif %}
+                            <form method="POST" action="{{ url_for('admin.delete_newsletter', id=item.id) }}" class="d-inline"> <button type="submit" class="btn btn-outline-danger">Delete</button></form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="empty-row">No newsletters found yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

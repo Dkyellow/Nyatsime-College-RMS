@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ newsletter.title }} - {{ brand.name }}</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <style>
+        body { background: #f5f7fb; color: #1f2937; font-family: Arial,sans-serif; }
+        .newsletter-reader { max-width: 920px; margin: 32px auto; background: white; border-radius: 18px; box-shadow: 0 12px 35px rgba(0,0,0,0.08); overflow: hidden; }
+        .newsletter-header { background: linear-gradient(135deg, {{ brand.primary_color }}, #0f172a); color: white; padding: 28px 32px; }
+        .newsletter-header img { max-height: 64px; }
+        .newsletter-body { padding: 28px 32px 40px; }
+        .cover-image { width: 100%; max-height: 280px; object-fit: cover; border-radius: 12px; margin-bottom: 22px; }
+        .meta { color: #64748b; margin-bottom: 20px; font-size: 0.9rem; }
+        .newsletter-body h1, .newsletter-body h2, .newsletter-body h3 { margin-top: 1rem; margin-bottom: 0.8rem; }
+        .newsletter-body p, .newsletter-body li { line-height: 1.8; }
+        .newsletter-body img { max-width: 100%; border-radius: 10px; margin: 18px 0; }
+        @media (max-width: 768px) { .newsletter-reader { margin: 12px; } .newsletter-header, .newsletter-body { padding: 20px; } }
+    </style>
+</head>
+<body>
+    <div class="newsletter-reader">
+        <div class="newsletter-header">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <img src="{{ brand.logo }}" alt="{{ brand.name }} Logo">
+                <div>
+                    <div class="fw-bold">{{ brand.name }}</div>
+                    <small>{{ brand.motto }}</small>
+                </div>
+            </div>
+            <h1 class="mb-1">{{ newsletter.title }}</h1>
+            {% if newsletter.subtitle %}<p class="mb-0 text-white-50">{{ newsletter.subtitle }}</p>{% endif %}
+        </div>
+        <div class="newsletter-body">
+            {% if newsletter.cover_image %}<img src="{{ newsletter.cover_image }}" class="cover-image" alt="{{ newsletter.title }} cover">{% endif %}
+            <div class="meta">
+                {% if newsletter.published_at %}Published: {{ newsletter.published_at.strftime('%d %b %Y') }}{% endif %}
+                {% if newsletter.audience %} &middot; Audience: {{ newsletter.audience|title }}{% endif %}
+            </div>
+            <div>{{ newsletter.content|safe }}</div>
+        </div>
+    </div>
+</body>
+</html>

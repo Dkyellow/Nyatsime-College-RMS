@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Create Newsletter - {{ SCHOOL_NAME }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h4 class="page-title">{% if edit %}Edit Newsletter{% else %}Create Newsletter{% endif %}</h4>
+        <p class="page-sub">Write, preview, and publish updates to parents and students.</p>
+    </div>
+</div>
+
+<div class="card-panel">
+    <form method="POST" class="row g-3">
+        <div class="col-md-8">
+            <label class="form-label">Title</label>
+            <input type="text" class="form-control" name="title" value="{{ newsletter.title if newsletter else '' }}" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Audience</label>
+            <select class="form-select" name="audience">
+                <option value="all" {% if newsletter and newsletter.audience == 'all' %}selected{% endif %}>Everyone</option>
+                <option value="students" {% if newsletter and newsletter.audience == 'students' %}selected{% endif %}>Students</option>
+                <option value="teachers" {% if newsletter and newsletter.audience == 'teachers' %}selected{% endif %}>Teachers</option>
+                <option value="parents" {% if newsletter and newsletter.audience == 'parents' %}selected{% endif %}>Parents</option>
+                <option value="class" {% if newsletter and newsletter.audience == 'class' %}selected{% endif %}>Specific Form/Class</option>
+            </select>
+        </div>
+        <div class="col-12">
+            <label class="form-label">Subtitle</label>
+            <input type="text" class="form-control" name="subtitle" value="{{ newsletter.subtitle if newsletter else '' }}">
+        </div>
+        <div class="col-12">
+            <label class="form-label">Target form/class</label>
+            <select class="form-select" name="target_value">
+                <option value="">Select form/class</option>
+                {% for grade in form_classes %}
+                <option value="{{ grade.name }}" {% if newsletter and newsletter.target_value == grade.name %}selected{% endif %}>{{ grade.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12">
+            <label class="form-label">Cover image URL</label>
+            <input type="text" class="form-control" name="cover_image" value="{{ newsletter.cover_image if newsletter else '' }}">
+        </div>
+        <div class="col-12">
+            <label class="form-label">Content</label>
+            <textarea class="form-control" name="content" rows="16" required>{{ newsletter.content|safe if newsletter else '' }}</textarea>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Status</label>
+            <select class="form-select" name="status">
+                <option value="draft" {% if newsletter and newsletter.status == 'draft' %}selected{% endif %}>Draft</option>
+                <option value="published" {% if newsletter and newsletter.status == 'published' %}selected{% endif %}>Publish now</option>
+                <option value="scheduled" {% if newsletter and newsletter.status == 'scheduled' %}selected{% endif %}>Schedule</option>
+            </select>
+        </div>
+        <div class="col-md-8">
+            <label class="form-label">Schedule date/time</label>
+            <input type="datetime-local" class="form-control" name="scheduled_at" value="{% if newsletter and newsletter.scheduled_at %}{{ newsletter.scheduled_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+        </div>
+        <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Save Newsletter</button>
+            {% if newsletter %}<a href="{{ url_for('admin.preview_newsletter', id=newsletter.id) }}" class="btn btn-outline-primary" target="_blank">Preview</a>{% endif %}
+            <a href="{{ url_for('admin.newsletters') }}" class="btn btn-outline-secondary">Back</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
