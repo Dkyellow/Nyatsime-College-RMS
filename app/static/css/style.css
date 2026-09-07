@@ -1,5 +1,5 @@
 /* ============================================================
-   TYNWALD HIGH SCHOOL — Academic Records & Report Management System
+    NYATSIME COLLEGE — Academic Records & Report Management System
    Design System: Premium institutional-grade UI
    Brand tokens (--tw-*) are defined here and overridden at
    runtime by the context processor for each school.
@@ -8,7 +8,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
 
 :root {
-    /* ── Tynwald Brand Tokens ────────────────────────────────── */
+    /* ── Nyatsime Brand Tokens ────────────────────────────────── */
     --tw-maroon:        #6A2A39;
     --tw-maroon-dark:   #521F2C;
     --tw-maroon-deep:   #4A1B27;

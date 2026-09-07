@@ -9,7 +9,7 @@ Changes applied:
   - Drops grading_scales table if present
   - Ensures fixed secondary school forms exist
   - Seeds default subjects, grade-subject mappings, academic year/terms
-- Seeds all SchoolSetting defaults (Tynwald High School) if not yet configured
+- Seeds all SchoolSetting defaults (Nyatsime College) if not yet configured
 
 Run:  python migrate_database.py
 """
@@ -303,7 +303,7 @@ def seed_structure(app):
         # Default report template
         if ReportTemplate.query.count() == 0:
             db.session.add(ReportTemplate(
-                name='Tynwald High School Report Card',
+                name='Nyatsime College Report Card',
                 template_type='secondary',
                 description='Official academic report card for all forms',
                 is_default=True))
@@ -311,7 +311,7 @@ def seed_structure(app):
 
         # Brand defaults
         defaults = {
-            'school_name': 'TYNWALD HIGH SCHOOL',
+            'school_name': 'NYATSIME COLLEGE',
             'school_motto': 'Quality & Excellence',
             'school_address': '',
             'school_phone': '',
@@ -331,7 +331,7 @@ def seed_structure(app):
             for s in students_without_users:
                 uname = generate_username(s.first_name, s.last_name, username_exists)
                 used_usernames.add(uname)
-                user = User(username=uname, email=f'{uname}@student.tynwaldhigh.ac.zw', role='student')
+                user = User(username=uname, email=f'{uname}@student.nyatsimecollege.ac.zw', role='student')
                 user.set_password('student123')
                 db.session.add(user)
                 db.session.flush()
@@ -342,9 +342,9 @@ def seed_structure(app):
 
 
 def seed_school_settings(app):
-    """Populate SchoolSetting with Tynwald High School defaults for any keys not yet set."""
+    """Populate SchoolSetting with Nyatsime College defaults for any keys not yet set."""
     defaults = {
-        'school_name':       'TYNWALD HIGH SCHOOL',
+        'school_name':       'NYATSIME COLLEGE',
         'school_short_name': 'Quality & Excellence',
         'school_motto':      'Quality & Excellence',
         'school_address':    '',

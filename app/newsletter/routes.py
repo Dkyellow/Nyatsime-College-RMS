@@ -33,7 +33,7 @@ def school_logo_url():
 
 def get_school_brand():
     return {
-        'name': SchoolSetting.get('school_name', 'TYNWALD HIGH SCHOOL'),
+        'name': SchoolSetting.get('school_name', 'NYATSIME COLLEGE'),
         'motto': SchoolSetting.get('school_motto', 'Quality & Excellence'),
         'logo': school_logo_url(),
         'address': SchoolSetting.get('school_address', ''),

@@ -47,7 +47,7 @@ def create_app():
                 return default
 
         # ── Core school information ──────────────────────────────────────────
-        school_name    = setting('school_name',    'TYNWALD HIGH SCHOOL')
+        school_name    = setting('school_name',    'NYATSIME COLLEGE')
         school_motto   = setting('school_motto',   'Quality & Excellence')
         school_address = setting('school_address', '')
         school_phone   = setting('school_phone',   '')

@@ -998,7 +998,7 @@ def generate_report_card_pdf(report):
 
         school_name=setting(
             "school_name",
-            "TYNWALD HIGH SCHOOL"
+            "NYATSIME COLLEGE"
         ),
 
         school_address=setting(

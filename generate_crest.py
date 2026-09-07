@@ -1,7 +1,7 @@
-﻿"""Generate the Tynwald High School crest PNG used in printable/PDF report cards.
+﻿"""Generate the Nyatsime College crest PNG used in printable/PDF report cards.
 
 Run once:  python generate_crest.py
-Output:    app/static/img/tynwald-crest.png
+Output:    app/static/img/nyatsime-crest.png
 """
 import math
 import os
@@ -19,7 +19,7 @@ GREEN = (0, 168, 89, 255)
 DARK = (37, 21, 27, 255)
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                   'app', 'static', 'img', 'tynwald-crest.png')
+                   'app', 'static', 'img', 'nyatsime-crest.png')
 
 
 def pt(x, y):
@@ -126,9 +126,9 @@ def main():
     ribbon = [(38, 168), (162, 168), (156, 186), (44, 186)]
     d.polygon([pt(x, y) for x, y in ribbon], fill=MAROON)
 
-    # "TYNWALD" text on ribbon
+    # "NYATSIME" text on ribbon
     font = load_font(11)
-    text = 'TYNWALD'
+    text = 'NYATSIME'
     bbox = d.textbbox((0, 0), text, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     d.text((100 * S - tw / 2 - bbox[0], 176 * S - th / 2 - bbox[1]),
