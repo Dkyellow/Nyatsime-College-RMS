@@ -14,7 +14,7 @@ from flask import render_template_string, current_app
 # Change this whenever the PDF layout is changed.
 # This prevents old cached PDFs from being reused.
 
-REPORT_TEMPLATE_VERSION = "v32"
+REPORT_TEMPLATE_VERSION = "v34"
 
 
 # ================================================================
