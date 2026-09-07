@@ -1018,12 +1018,12 @@ def generate_report_card_pdf(report):
 
         primary_color=setting(
             "primary_color",
-            "#6A2A39"
+            "#4EA3D8"
         ),
 
         accent_color=setting(
             "accent_color",
-            "#FFF212"
+            "#F4C542"
         ),
 
     )

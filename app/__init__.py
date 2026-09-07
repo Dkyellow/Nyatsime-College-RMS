@@ -59,8 +59,8 @@ def create_app():
         report_footer  = setting('report_footer',  '')
 
         # ── Brand colours ────────────────────────────────────────────────────
-        primary_color = setting('primary_color', '#6A2A39')
-        accent_color  = setting('accent_color',  '#FFF212')
+        primary_color = setting('primary_color', '#4EA3D8')
+        accent_color  = setting('accent_color',  '#F4C542')
 
         # Derive a darker shade of primary for hover states (simple offset)
         def _hex_darken(hex_color, factor=0.85):

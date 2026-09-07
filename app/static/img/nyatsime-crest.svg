@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
   <defs>
     <linearGradient id="shieldFill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0370b1"/>
-      <stop offset="100%" stop-color="#025a8e"/>
+      <stop offset="0%" stop-color="#4EA3D8"/>
+      <stop offset="100%" stop-color="#176B9E"/>
     </linearGradient>
     <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#F7C948"/>
-      <stop offset="100%" stop-color="#E8A80C"/>
+      <stop offset="0%" stop-color="#F4C542"/>
+      <stop offset="100%" stop-color="#D9A900"/>
     </linearGradient>
   </defs>
 
@@ -29,7 +29,7 @@
     <path d="M144 118 C130 115 116 117 106 122" stroke="#AAB9D6" stroke-width="2" fill="none"/>
     <path d="M144 128 C130 125 116 127 106 132" stroke="#AAB9D6" stroke-width="2" fill="none"/>
     <!-- book spine -->
-    <rect x="97.5" y="112" width="5" height="46" rx="2" fill="#7A1F2B"/>
+    <rect x="97.5" y="112" width="5" height="46" rx="2" fill="#176B9E"/>
   </g>
 
   <!-- Torch flame above book -->
@@ -51,5 +51,5 @@
   <path d="M38 168 C60 178 140 178 162 168 L156 186 C136 195 64 195 44 186 Z"
         fill="url(#goldGrad)"/>
   <text x="100" y="183" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
-        font-size="11" font-weight="bold" fill="#025a8e" letter-spacing="1">NYATSIME</text>
+        font-size="11" font-weight="bold" fill="#176B9E" letter-spacing="1">NYATSIME</text>
 </svg>

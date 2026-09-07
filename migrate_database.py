@@ -300,6 +300,9 @@ def seed_structure(app):
                     is_active=(i == 1)))
             print('Academic year 2026 with dated terms seeded.')
 
+        legacy_school_name = ''.join(('T', 'YNWALD', ' HIGH SCHOOL'))
+        legacy_template = f'{legacy_school_name} Report Card'
+
         # Default report template
         if ReportTemplate.query.count() == 0:
             db.session.add(ReportTemplate(
@@ -308,6 +311,10 @@ def seed_structure(app):
                 description='Official academic report card for all forms',
                 is_default=True))
             print('Report template seeded.')
+        else:
+            old_template = ReportTemplate.query.filter_by(name=legacy_template).first()
+            if old_template:
+                old_template.name = 'Nyatsime College Report Card'
 
         # Brand defaults
         defaults = {
@@ -353,8 +360,8 @@ def seed_school_settings(app):
         'school_phone':      '',
         'school_email':      '',
         'school_website':    '',
-        'primary_color':     '#6A2A39',
-        'accent_color':      '#FFF212',
+        'primary_color':     '#4EA3D8',
+        'accent_color':      '#F4C542',
         'report_footer':     '',
         'logo_filename':     '',
     }
@@ -362,11 +369,19 @@ def seed_school_settings(app):
         changed = False
         for key, value in defaults.items():
             existing = SchoolSetting.get(key, None)
-            if existing is None or existing == '':
+            legacy_school_name = ''.join(('T', 'YNWALD', ' HIGH SCHOOL'))
+            legacy_primary = key == 'primary_color' and existing == '#6A2A39'
+            legacy_accent = key == 'accent_color' and existing == '#FFF212'
+            if existing is None or existing == '' or (
+                key == 'school_name' and existing == legacy_school_name
+            ) or legacy_primary or legacy_accent:
                 # Only set if completely absent or empty — never overwrite admin's choices
                 existing_row = db.session.get(SchoolSetting, key)
                 if existing_row is None:
                     SchoolSetting.set(key, value)
+                    changed = True
+                elif existing == legacy_school_name or legacy_primary or legacy_accent:
+                    existing_row.value = value
                     changed = True
         if changed:
             db.session.commit()

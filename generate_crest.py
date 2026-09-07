@@ -10,9 +10,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 S = 4
 W, H = 200, 220
-MAROON = (106, 42, 57, 255)
-GOLD = (255, 242, 18, 255)
-DARK_MAROON = (82, 31, 44, 255)
+MAROON = (78, 163, 216, 255)
+GOLD = (244, 197, 66, 255)
+DARK_MAROON = (23, 107, 158, 255)
 WHITE = (255, 255, 255, 255)
 CREAM = (250, 249, 245, 255)
 GREEN = (0, 168, 89, 255)

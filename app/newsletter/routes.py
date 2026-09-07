@@ -39,8 +39,8 @@ def get_school_brand():
         'address': SchoolSetting.get('school_address', ''),
         'phone': SchoolSetting.get('school_phone', ''),
         'email': SchoolSetting.get('school_email', ''),
-        'primary_color': SchoolSetting.get('primary_color', '#6A2A39'),
-        'accent_color': SchoolSetting.get('accent_color', '#FFF212'),
+        'primary_color': SchoolSetting.get('primary_color', '#4EA3D8'),
+        'accent_color': SchoolSetting.get('accent_color', '#F4C542'),
     }
 
 
