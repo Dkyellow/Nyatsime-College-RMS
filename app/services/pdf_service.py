@@ -688,15 +688,16 @@ def _get_watermark_path():
     )
 
 
-    # Build a watermark filename based on the school's logo name
+    # Include the logo content hash so replacing a logo cannot reuse a stale watermark.
     logo_name = os.path.splitext(
         os.path.basename(logo_path)
     )[0]
+    logo_hash = hashlib.sha256(Path(logo_path).read_bytes()).hexdigest()[:12]
 
 
     watermark_path = os.path.join(
         watermark_dir,
-        f"a4_watermark_{logo_name}.png"
+        f"a4_watermark_{logo_name}_{logo_hash}.png"
     )
 
 
