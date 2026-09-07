@@ -14,7 +14,7 @@ from flask import render_template_string, current_app
 # Change this whenever the PDF layout is changed.
 # This prevents old cached PDFs from being reused.
 
-REPORT_TEMPLATE_VERSION = "v31"
+REPORT_TEMPLATE_VERSION = "v32"
 
 
 # ================================================================
@@ -53,7 +53,7 @@ REPORT_CARD_HTML = """
 body {
     font-family: Helvetica, Arial, sans-serif;
     font-size: 9pt;
-    color: #1a1a1a;
+    color: #163247;
     background-color: transparent;
 }
 
@@ -112,7 +112,7 @@ body {
     letter-spacing: 2px;
     text-transform: uppercase;
     border-top: 2pt solid {{ primary_color }};
-    border-bottom: 1pt solid {{ primary_color }};
+    border-bottom: 1pt solid {{ accent_color }};
     padding: 1.5mm 0;
     margin-top: 1mm;
 }
@@ -164,8 +164,8 @@ body {
 .info .fld {
     font-size: 9pt;
     font-weight: bold;
-    color: #1a1a1a;
-    border-bottom: 0.5pt solid #ddd;
+    color: #163247;
+    border-bottom: 0.5pt solid rgba(78, 163, 216, 0.28);
     padding-bottom: 1mm;
 }
 
@@ -178,7 +178,7 @@ body {
 }
 
 .info tr:nth-child(even) td {
-    background: rgba(253, 251, 249, 0.4);
+    background: rgba(78, 163, 216, 0.08);
 }
 
 
@@ -191,7 +191,7 @@ body {
     border-collapse: collapse;
     margin-top: 6mm;
     margin-bottom: 6mm;
-    border: 0.5pt solid #ddd;
+    border: 0.5pt solid rgba(78, 163, 216, 0.35);
 }
 
 .marks th {
@@ -218,7 +218,7 @@ body {
     vertical-align: middle;
     text-align: center;
     font-size: 9pt;
-    border-bottom: 0.5pt solid #eee;
+    border-bottom: 0.5pt solid rgba(78, 163, 216, 0.18);
 }
 
 .marks tr:last-child td {
@@ -230,7 +230,7 @@ body {
 }
 
 .marks tr:nth-child(even) td {
-    background: rgba(248, 246, 243, 0.8);
+    background: rgba(78, 163, 216, 0.06);
 }
 
 .marks td.c1 {
@@ -275,13 +275,14 @@ body {
 .summary td {
     padding: 1.5mm 3mm;
     font-size: 9pt;
-    border: 0.5pt solid #999;
+    border: 0.5pt solid rgba(78, 163, 216, 0.42);
     background: transparent;
 }
 
 .summary .s-label {
     font-weight: bold;
-    color: #555;
+    color: #176B9E;
+    background: rgba(244, 197, 66, 0.16);
     width: 35%;
 }
 
