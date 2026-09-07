@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: nyatsime-college
+    name: tynwald-high-school
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt

@@ -105,7 +105,7 @@
             <div class="modal-body"><div class="row g-3">
                 <div class="col-6"><label class="form-label">First Name</label><input type="text" class="form-control" name="first_name" required></div>
                 <div class="col-6"><label class="form-label">Last Name</label><input type="text" class="form-control" name="last_name" required></div>
-                <div class="col-6"><label class="form-label">Admission No.</label><input type="text" class="form-control" name="admission_number" required placeholder="e.g., NYS26001"></div>
+                <div class="col-6"><label class="form-label">Admission No.</label><input type="text" class="form-control" name="admission_number" required placeholder="e.g., THS26001"></div>
                 <div class="col-6"><label class="form-label">Date of Birth</label><input type="date" class="form-control" name="date_of_birth"></div>
                 <div class="col-6"><label class="form-label">Gender</label><select class="form-select" name="gender"><option value="Male">Male</option><option value="Female">Female</option></select></div>
                 <div class="col-6"><label class="form-label">Class / Stream</label><select class="form-select" name="class_id" required><option value="">Select...</option>{% for c in classes|sort(attribute='name') %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>

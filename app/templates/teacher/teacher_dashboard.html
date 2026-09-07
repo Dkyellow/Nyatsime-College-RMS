@@ -16,7 +16,7 @@
 
 <div class="stat-grid four">
     <div class="stat-card">
-        <div class="stat-icon blue"><i class="bi bi-mortarboard"></i></div>
+        <div class="stat-icon blue"><i class="bi bi-people"></i></div>
         <div><div class="stat-value">{{ total_students }}</div><div class="stat-label">My Students</div></div>
     </div>
     <div class="stat-card">
@@ -36,7 +36,7 @@
 <div class="row g-3 g-lg-4 mt-0">
     <div class="col-xl-7">
         <div class="card-panel h-100">
-            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-collection me-2"></i>My Classes</h6></div>
+            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-collection"></i>My Classes</h6></div>
             {% for c in classes %}
             <a href="{{ url_for('teacher.view_class', class_id=c.id) }}" class="class-row">
                 <span class="avatar-initials">{{ (c.grade.name[:1] ~ (c.section or 'A')[:1])|upper if c.grade else c.name[:2]|upper }}</span>
@@ -47,14 +47,17 @@
                 <i class="bi bi-chevron-right text-muted"></i>
             </a>
             {% else %}
-            <p class="text-muted">No classes assigned to you yet. Contact the administrator.</p>
+            <div class="empty-panel">
+                <i class="bi bi-inbox"></i>
+                <p class="text-muted mb-0">No classes assigned to you yet. Contact the administrator.</p>
+            </div>
             {% endfor %}
         </div>
     </div>
 
     <div class="col-xl-5">
         <div class="card-panel mb-3">
-            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-lightning-charge me-2"></i>Quick Marks Entry</h6></div>
+            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-lightning-charge"></i>Quick Marks Entry</h6></div>
             <p class="text-muted small mb-3">Enter marks for a whole class in one screen.</p>
             {% for c in classes %}
             <a href="{{ url_for('teacher.view_class', class_id=c.id) }}" class="btn btn-outline w-100 justify-content-between d-flex align-items-center mb-2">
@@ -64,7 +67,7 @@
         </div>
 
         <div class="card-panel">
-            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-clock-history me-2"></i>Recent Results</h6></div>
+            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-clock-history"></i>Recent Results</h6></div>
             {% for report in recent_results %}
             <div class="d-flex align-items-center py-2 border-bottom">
                 <span class="avatar-initials sm me-2">{{ (report.student.first_name[0] ~ report.student.last_name[0])|upper }}</span>
@@ -76,7 +79,10 @@
                 <span class="status-badge {{ report.status }} ms-2">{{ report.status|title }}</span>
             </div>
             {% else %}
-            <p class="text-muted mb-0">No results entered yet.</p>
+            <div class="empty-panel">
+                <i class="bi bi-inbox"></i>
+                <p class="text-muted mb-0">No results entered yet.</p>
+            </div>
             {% endfor %}
         </div>
     </div>

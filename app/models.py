@@ -251,6 +251,7 @@ class Mark(db.Model):
     score = db.Column(db.Float, default=0)
     grade = db.Column(db.String(5))  # calculated automatically on save
     max_score = db.Column(db.Integer, default=100)
+    comment = db.Column(db.Text)
 
     report = db.relationship('Report', back_populates='marks')
     subject = db.relationship('Subject')
@@ -351,3 +352,42 @@ class AuditLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     user = db.relationship('User', backref=db.backref('audit_logs', lazy='dynamic'))
+
+
+class Payment(db.Model):
+    """Tracks student fee payments per academic term."""
+    __tablename__ = 'payments'
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
+    academic_year = db.Column(db.String(10), nullable=False)
+    academic_term = db.Column(db.String(20), nullable=False)
+    amount_paid = db.Column(db.Float, default=0)
+    amount_due = db.Column(db.Float, default=0)
+    is_paid = db.Column(db.Boolean, default=False)
+    payment_date = db.Column(db.Date)
+    receipt_number = db.Column(db.String(50))
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    student = db.relationship('Student', backref=db.backref('payments', cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        db.UniqueConstraint('student_id', 'academic_year', 'academic_term', name='uq_payment_student_term'),
+    )
+
+
+class CalendarEvent(db.Model):
+    """School calendar events - exams, holidays, sports days, etc."""
+    __tablename__ = 'calendar_events'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    event_type = db.Column(db.String(30), nullable=False, default='general')
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    creator = db.relationship('User', backref=db.backref('created_events', lazy='dynamic'))

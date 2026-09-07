@@ -10,7 +10,7 @@ from app.models import (
     db, User, Admin, Teacher, Student, Class, Subject, Report, Mark,
     Grade, GradeSubject, AcademicYear,
     AcademicTerm, SchoolSetting, TeacherSubjectClass, AuditLog,
-    StudentSubject, StudentPromotion
+    StudentSubject, StudentPromotion, CalendarEvent
 )
 from functools import wraps
 from app.services.pdf_service import invalidate_report_cache
@@ -1546,3 +1546,170 @@ def form3_transition():
     db.session.commit()
     flash(f'Form 3 transition complete: {promoted} students placed into streams.', 'success')
     return redirect(url_for('admin.form3_transition'))
+
+
+# ==================== SCHOOL CALENDAR ====================
+
+@admin_bp.route('/school-calendar')
+@admin_required
+def school_calendar():
+    import calendar as cal
+    from datetime import date
+
+    today = date.today()
+    month = request.args.get('month', today.month, type=int)
+    year = request.args.get('year', today.year, type=int)
+
+    month = max(1, min(12, month))
+    year = max(2020, min(2099, year))
+
+    cal_month = cal.monthcalendar(year, month)
+    month_name = cal.month_name[month]
+
+    prev_month = month - 1 if month > 1 else 12
+    prev_year = year if month > 1 else year - 1
+    next_month = month + 1 if month < 12 else 1
+    next_year = year if month < 12 else year + 1
+
+    events = CalendarEvent.query.filter_by(is_active=True).order_by(CalendarEvent.start_date).all()
+
+    events_by_date = {}
+    for e in events:
+        d = e.start_date.isoformat()
+        events_by_date.setdefault(d, []).append(e)
+        if e.end_date and e.end_date != e.start_date:
+            from datetime import timedelta
+            current = e.start_date + timedelta(days=1)
+            while current <= e.end_date:
+                events_by_date.setdefault(current.isoformat(), []).append(e)
+                current += timedelta(days=1)
+
+    return render_template('school_calendar.html',
+                           events=events,
+                           cal_month=cal_month,
+                           month=month,
+                           year=year,
+                           month_name=month_name,
+                           today=today,
+                           events_by_date=events_by_date,
+                           prev_month=prev_month,
+                           prev_year=prev_year,
+                           next_month=next_month,
+                           next_year=next_year)
+
+
+@admin_bp.route('/school-calendar/add', methods=['POST'])
+@admin_required
+def add_calendar_event():
+    title = request.form.get('title', '').strip()
+    description = request.form.get('description', '').strip()
+    event_type = request.form.get('event_type', 'general').strip()
+    start_raw = request.form.get('start_date', '').strip()
+    end_raw = request.form.get('end_date', '').strip()
+
+    if not title or not start_raw:
+        flash('Title and start date are required.', 'danger')
+        return redirect(url_for('admin.school_calendar'))
+
+    try:
+        start_date = datetime.strptime(start_raw, '%Y-%m-%d').date()
+    except ValueError:
+        flash('Invalid start date.', 'danger')
+        return redirect(url_for('admin.school_calendar'))
+
+    end_date = None
+    if end_raw:
+        try:
+            end_date = datetime.strptime(end_raw, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Invalid end date.', 'danger')
+            return redirect(url_for('admin.school_calendar'))
+
+    if end_date and end_date < start_date:
+        flash('End date cannot be before start date.', 'danger')
+        return redirect(url_for('admin.school_calendar'))
+
+    event = CalendarEvent(
+        title=title,
+        description=description,
+        event_type=event_type,
+        start_date=start_date,
+        end_date=end_date,
+        created_by=current_user.id,
+    )
+    db.session.add(event)
+    log_action('create', 'calendar_event', event.id, f'Added event: {title}')
+    db.session.commit()
+    flash(f'Event "{title}" added to the calendar.', 'success')
+    return redirect(url_for('admin.school_calendar'))
+
+
+@admin_bp.route('/school-calendar/edit/<int:event_id>', methods=['POST'])
+@admin_required
+def edit_calendar_event(event_id):
+    event = CalendarEvent.query.get_or_404(event_id)
+
+    title = request.form.get('title', '').strip()
+    description = request.form.get('description', '').strip()
+    event_type = request.form.get('event_type', 'general').strip()
+    start_raw = request.form.get('start_date', '').strip()
+    end_raw = request.form.get('end_date', '').strip()
+
+    if not title or not start_raw:
+        flash('Title and start date are required.', 'danger')
+        return redirect(url_for('admin.school_calendar'))
+
+    try:
+        event.start_date = datetime.strptime(start_raw, '%Y-%m-%d').date()
+    except ValueError:
+        flash('Invalid start date.', 'danger')
+        return redirect(url_for('admin.school_calendar'))
+
+    if end_raw:
+        try:
+            event.end_date = datetime.strptime(end_raw, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Invalid end date.', 'danger')
+            return redirect(url_for('admin.school_calendar'))
+    else:
+        event.end_date = None
+
+    if event.end_date and event.end_date < event.start_date:
+        flash('End date cannot be before start date.', 'danger')
+        return redirect(url_for('admin.school_calendar'))
+
+    event.title = title
+    event.description = description
+    event.event_type = event_type
+
+    log_action('update', 'calendar_event', event.id, f'Updated event: {title}')
+    db.session.commit()
+    flash(f'Event "{title}" updated.', 'success')
+    return redirect(url_for('admin.school_calendar'))
+
+
+@admin_bp.route('/school-calendar/delete/<int:event_id>', methods=['POST'])
+@admin_required
+def delete_calendar_event(event_id):
+    event = CalendarEvent.query.get_or_404(event_id)
+    title = event.title
+    event.is_active = False
+    log_action('delete', 'calendar_event', event.id, f'Deleted event: {title}')
+    db.session.commit()
+    flash(f'Event "{title}" removed from calendar.', 'success')
+    return redirect(url_for('admin.school_calendar'))
+
+
+@admin_bp.route('/api/calendar-events')
+@admin_required
+def calendar_events_json():
+    """Return calendar events as JSON for a fullCalendar-style view."""
+    events = CalendarEvent.query.filter_by(is_active=True).all()
+    return jsonify([{
+        'id': e.id,
+        'title': e.title,
+        'start': e.start_date.isoformat(),
+        'end': (e.end_date or e.start_date).isoformat(),
+        'type': e.event_type,
+        'description': e.description or '',
+    } for e in events])

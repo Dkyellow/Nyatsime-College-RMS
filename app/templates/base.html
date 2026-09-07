@@ -15,7 +15,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
     <meta property="og:title" content="{{ SCHOOL_NAME }} - Academic Records">
-    <meta property="og:description" content="{{ SCHOOL_NAME }} Academic Records & Report Management System. Manage students, teachers, classes, and generate report cards.">
+    <meta property="og:description" content="{{ SCHOOL_NAME }} Academic Records & Report Management System.">
     <meta property="og:image" content="{{ SCHOOL_LOGO_URL }}">
     <meta property="og:site_name" content="{{ SCHOOL_NAME }}">
 
@@ -23,12 +23,12 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="{{ request.url }}">
     <meta name="twitter:title" content="{{ SCHOOL_NAME }} - Academic Records">
-    <meta name="twitter:description" content="{{ SCHOOL_NAME }} Academic Records & Report Management System. Manage students, teachers, classes, and generate report cards.">
+    <meta name="twitter:description" content="{{ SCHOOL_NAME }} Academic Records & Report Management System.">
     <meta name="twitter:image" content="{{ SCHOOL_LOGO_URL }}">
 
     <!-- Additional Meta -->
-    <meta name="theme-color" content="{{ PRIMARY_COLOR or '#1C3480' }}">
-    <meta name="msapplication-TileColor" content="{{ PRIMARY_COLOR or '#1C3480' }}">
+    <meta name="theme-color" content="{{ PRIMARY_COLOR or '#6A2A39' }}">
+    <meta name="msapplication-TileColor" content="{{ PRIMARY_COLOR or '#6A2A39' }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="{{ SCHOOL_NAME }}">
@@ -51,12 +51,12 @@
                 <img src="{{ SCHOOL_LOGO_URL }}" alt="{{ SCHOOL_NAME }} Logo" class="brand-crest">
                 <span class="brand-text">
                     <strong>{{ SCHOOL_NAME }}</strong>
-                    {% if SCHOOL_SHORT_NAME %}<small>{{ SCHOOL_SHORT_NAME }}</small>{% else %}<small>Academic Records</small>{% endif %}
+                    {% if SCHOOL_MOTTO %}<small>{{ SCHOOL_MOTTO }}</small>{% else %}<small>Academic Records</small>{% endif %}
                 </span>
             </div>
 
             <ul class="sidebar-nav">
-                <li class="sidebar-section"><span>Main</span></li>
+                <li class="sidebar-section"><span>Overview</span></li>
                 <li class="{% if request.endpoint and 'dashboard' in request.endpoint %}active{% endif %}">
                     <a href="{% if current_user.role == 'admin' %}{{ url_for('admin.dashboard') }}{% elif current_user.role == 'teacher' %}{{ url_for('teacher.dashboard') }}{% else %}{{ url_for('student.dashboard') }}{% endif %}">
                         <i class="bi bi-grid-1x2"></i><span class="nav-label">Dashboard</span>
@@ -65,35 +65,39 @@
 
                 {% if current_user.role == 'admin' %}
                 <li class="sidebar-section"><span>Academic Management</span></li>
-                <li class="sidebar-section"><span>Student Management</span></li>
                 <li class="{% if request.endpoint == 'admin.students' or request.endpoint == 'admin.student_profile' %}active{% endif %}">
-                    <a href="{{ url_for('admin.students') }}"><i class="bi bi-mortarboard"></i><span class="nav-label">Students</span></a>
+                    <a href="{{ url_for('admin.students') }}"><i class="bi bi-people"></i><span class="nav-label">Students</span></a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.classes' %}active{% endif %}">
+                    <a href="{{ url_for('admin.classes') }}"><i class="bi bi-building"></i><span class="nav-label">Classes &amp; Streams</span></a>
                 </li>
                 <li class="{% if request.endpoint == 'admin.import_class_list' %}active{% endif %}">
                     <a href="{{ url_for('admin.import_class_list') }}"><i class="bi bi-upload"></i><span class="nav-label">Import Class List</span></a>
                 </li>
-                <li class="{% if request.endpoint == 'admin.promote_students' %}active{% endif %}">
-                    <a href="{{ url_for('admin.promote_students') }}"><i class="bi bi-arrow-up-circle"></i><span class="nav-label">Promote Students</span></a>
+
+                <li class="sidebar-section"><span>Staff</span></li>
+                <li class="{% if request.endpoint in ['admin.teachers', 'admin.teacher_assignments'] %}active{% endif %}">
+                    <a href="{{ url_for('admin.teachers') }}"><i class="bi bi-person-workspace"></i><span class="nav-label">Teachers &amp; Assignments</span></a>
                 </li>
-                <li class="{% if request.endpoint == 'admin.form3_transition' %}active{% endif %}">
-                    <a href="{{ url_for('admin.form3_transition') }}"><i class="bi bi-arrow-left-right"></i><span class="nav-label">Form 3 Transition</span></a>
-                </li>
-                <li class="{% if request.endpoint == 'admin.teachers' %}active{% endif %}">
-                    <a href="{{ url_for('admin.teachers') }}"><i class="bi bi-person-workspace"></i><span class="nav-label">Teachers</span></a>
-                </li>
-                <li class="{% if request.endpoint == 'admin.classes' %}active{% endif %}">
-                    <a href="{{ url_for('admin.classes') }}"><i class="bi bi-collection"></i><span class="nav-label">Classes &amp; Streams</span></a>
-                </li>
+
+                <li class="sidebar-section"><span>Academics</span></li>
                 <li class="{% if request.endpoint == 'admin.subjects' %}active{% endif %}">
                     <a href="{{ url_for('admin.subjects') }}"><i class="bi bi-book"></i><span class="nav-label">Subjects</span></a>
+                </li>
+                <li class="{% if request.endpoint == 'admin.grade_subjects' %}active{% endif %}">
+                    <a href="{{ url_for('admin.grade_subjects') }}"><i class="bi bi-journal-bookmark"></i><span class="nav-label">Form Subjects</span></a>
                 </li>
                 <li class="{% if request.endpoint == 'admin.academic_calendar' %}active{% endif %}">
                     <a href="{{ url_for('admin.academic_calendar') }}"><i class="bi bi-calendar3"></i><span class="nav-label">Academic Calendar</span></a>
                 </li>
-                <li class="sidebar-section"><span>Results &amp; Reports</span></li>
-                <li class="{% if request.endpoint == 'admin.grade_subjects' %}active{% endif %}">
-                    <a href="{{ url_for('admin.grade_subjects') }}"><i class="bi bi-journal-bookmark"></i><span class="nav-label">Form Subjects</span></a>
+                <li class="{% if request.endpoint == 'admin.school_calendar' %}active{% endif %}">
+                    <a href="{{ url_for('admin.school_calendar') }}"><i class="bi bi-calendar-event"></i><span class="nav-label">School Calendar</span></a>
                 </li>
+                <li class="{% if request.endpoint in ['admin.promote_students', 'admin.form3_transition'] %}active{% endif %}">
+                    <a href="{{ url_for('admin.promote_students') }}"><i class="bi bi-arrow-up-circle"></i><span class="nav-label">Student Progression</span></a>
+                </li>
+
+                <li class="sidebar-section"><span>Assessment &amp; Reporting</span></li>
                 <li class="{% if request.endpoint == 'admin.reports' %}active{% endif %}">
                     <a href="{{ url_for('admin.reports') }}"><i class="bi bi-file-earmark-bar-graph"></i><span class="nav-label">Report Cards</span></a>
                 </li>
@@ -102,11 +106,11 @@
                 </li>
 
                 <li class="sidebar-section"><span>Administration</span></li>
-                <li class="{% if request.endpoint in ['admin.newsletters', 'admin.create_newsletter', 'admin.edit_newsletter', 'admin.preview_newsletter', 'admin.newsletter_analytics'] %}active{% endif %}">
-                    <a href="{{ url_for('admin.newsletters') }}"><i class="bi bi-megaphone"></i><span class="nav-label">Newsletters</span></a>
+                <li class="{% if request.endpoint and 'financial' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('financial.index') }}"><i class="bi bi-cash-stack"></i><span class="nav-label">Financial Records</span></a>
                 </li>
-                <li class="{% if request.endpoint == 'admin.teacher_assignments' %}active{% endif %}">
-                    <a href="{{ url_for('admin.teacher_assignments') }}"><i class="bi bi-person-check"></i><span class="nav-label">Teacher Assignments</span></a>
+                <li class="{% if request.endpoint in ['admin.newsletters', 'admin.create_newsletter', 'admin.edit_newsletter', 'admin.preview_newsletter', 'admin.newsletter_analytics'] %}active{% endif %}">
+                    <a href="{{ url_for('admin.newsletters') }}"><i class="bi bi-newspaper"></i><span class="nav-label">Newsletters</span></a>
                 </li>
                 <li class="{% if request.endpoint == 'admin.audit_logs' %}active{% endif %}">
                     <a href="{{ url_for('admin.audit_logs') }}"><i class="bi bi-clock-history"></i><span class="nav-label">Audit Logs</span></a>
@@ -125,6 +129,10 @@
                     <a href="{{ url_for('teacher.view_class', class_id=class.id) }}"><i class="bi bi-door-open"></i><span class="nav-label">{{ class.name }}</span></a>
                 </li>
                 {% endfor %}
+                <li class="sidebar-section"><span>School</span></li>
+                <li class="{% if request.endpoint == 'teacher.calendar' %}active{% endif %}">
+                    <a href="{{ url_for('teacher.calendar') }}"><i class="bi bi-calendar-event"></i><span class="nav-label">School Calendar</span></a>
+                </li>
 
                 {% elif current_user.role == 'student' %}
                 <li class="sidebar-section"><span>Student Portal</span></li>
@@ -137,11 +145,14 @@
                 <li class="{% if request.endpoint in ['student.student_newsletters', 'student.student_view_newsletter'] %}active{% endif %}">
                     <a href="{{ url_for('student.student_newsletters') }}"><i class="bi bi-newspaper"></i><span class="nav-label">Newsletters</span></a>
                 </li>
+                <li class="{% if request.endpoint == 'student.calendar' %}active{% endif %}">
+                    <a href="{{ url_for('student.calendar') }}"><i class="bi bi-calendar-event"></i><span class="nav-label">School Calendar</span></a>
+                </li>
                 {% endif %}
             </ul>
 
             <div class="sidebar-footer">
-                <span class="nav-label">&copy; {{ SCHOOL_NAME }}</span>
+                <span class="nav-label">&copy; {{ CURRENT_YEAR }} {{ SCHOOL_NAME }}</span>
             </div>
         </aside>
 
@@ -175,6 +186,7 @@
                 {% if messages %}
                 {% for category, message in messages %}
                 <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {% if category == 'success' %}<i class="bi bi-check-circle me-2"></i>{% elif category == 'danger' %}<i class="bi bi-exclamation-circle me-2"></i>{% elif category == 'warning' %}<i class="bi bi-exclamation-triangle me-2"></i>{% endif %}
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
@@ -194,6 +206,28 @@
     {% endif %}
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% if current_user.is_authenticated and current_user.role == 'student' %}
+    <script>
+    (function() {
+        var TIMEOUT_MS = 180000;
+        var timer;
+        function resetTimer() {
+            clearTimeout(timer);
+            timer = setTimeout(function() {
+                window.location.href = '{{ url_for("auth.logout") }}';
+            }, TIMEOUT_MS);
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon('{{ url_for("student.ping") }}');
+            } else {
+                fetch('{{ url_for("student.ping") }}', {method: 'POST', keepalive: true});
+            }
+        }
+        var events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        events.forEach(function(e) { document.addEventListener(e, resetTimer, {passive: true}); });
+        resetTimer();
+    })();
+    </script>
+    {% endif %}
     {% block extra_js %}{% endblock %}
 </body>
 </html>

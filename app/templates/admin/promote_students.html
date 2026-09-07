@@ -6,8 +6,13 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <h4 class="page-title">Student Promotion</h4>
-        <p class="page-sub">Promote students to the next form at the end of the academic year.</p>
+        <h4 class="page-title">Student Progression</h4>
+        <p class="page-sub">Promote students to the next form or handle Form 3 transitions.</p>
+    </div>
+    <div class="head-actions">
+        <a href="{{ url_for('admin.form3_transition') }}" class="btn btn-outline">
+            <i class="bi bi-arrow-left-right me-1"></i>Form 3 Transition
+        </a>
     </div>
 </div>
 

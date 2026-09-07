@@ -69,6 +69,37 @@ def grade_scale_public():
             for n, mn, mx, l, d, _ in GRADE_SCALE]
 
 
+# --------------------------------------------------------- auto comments ----
+
+AUTO_COMMENT_MAP = {
+    'A': 'Excellent performance. Keep up the outstanding work!',
+    'B': 'Very good work. There is room for further improvement.',
+    'C': 'Fairly good. More effort is needed to reach full potential.',
+    'D': 'Satisfactory. Additional effort and commitment are required.',
+    'E': 'Pass. Significant improvement is needed across subjects.',
+    'U': 'Unsatisfactory. Urgent attention and extra support are required.',
+}
+
+
+def generate_auto_comment(average, overall_grade=None):
+    """Generate an automatic teacher comment based on the student's average.
+
+    Returns a pre-written comment string that teachers can edit before
+    submitting the report.
+    """
+    if overall_grade and overall_grade in AUTO_COMMENT_MAP:
+        return AUTO_COMMENT_MAP[overall_grade]
+    if average is not None:
+        try:
+            avg = float(average)
+        except (TypeError, ValueError):
+            return ''
+        for _, mn, mx, letter, _, _ in GRADE_SCALE:
+            if mn <= avg <= mx:
+                return AUTO_COMMENT_MAP.get(letter, '')
+    return ''
+
+
 # ----------------------------------------------------------------- terms ----
 
 TERM_NAMES = ['Term 1', 'Term 2', 'Term 3']

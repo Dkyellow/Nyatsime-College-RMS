@@ -21,12 +21,12 @@
     // Desktop collapse (persisted)
     const collapseBtn = document.getElementById('sidebarCollapse');
     if (collapseBtn) {
-        if (localStorage.getItem('nySidebarCollapsed') === '1') {
+        if (localStorage.getItem('twSidebarCollapsed') === '1') {
             document.body.classList.add('sidebar-collapsed');
         }
         collapseBtn.addEventListener('click', function() {
             const collapsed = document.body.classList.toggle('sidebar-collapsed');
-            localStorage.setItem('nySidebarCollapsed', collapsed ? '1' : '0');
+            localStorage.setItem('twSidebarCollapsed', collapsed ? '1' : '0');
         });
     }
 

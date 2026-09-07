@@ -7,58 +7,99 @@
 <div class="page-head">
     <div>
         <h4 class="page-title">Form 3 Transition</h4>
-        <p class="page-sub">Place Form 2 students into streams (Science, Arts, Commercials) for Form 3.</p>
+        <p class="page-sub">Place Form 2 students into streams for Form 3.</p>
+    </div>
+    <div class="head-actions">
+        <a href="{{ url_for('admin.promote_students') }}" class="btn btn-outline">
+            <i class="bi bi-arrow-left me-1"></i>Back to Student Progression
+        </a>
     </div>
 </div>
 
 <div class="row g-4 mb-4">
     <div class="col-md-4">
-        <div class="card-panel text-center p-4">
-            <h6 class="mb-2">Science Stream</h6>
-            <small class="text-muted">Core: Math, Physics, Chemistry, Biology</small>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-4">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 mb-3" style="width:56px;height:56px;">
+                    <i class="bi bi-beaker text-primary fs-3"></i>
+                </div>
+                <h6 class="mb-1">Science Stream</h6>
+                <small class="text-muted">Math, Physics, Chemistry, Biology</small>
+            </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card-panel text-center p-4">
-            <h6 class="mb-2">Arts Stream</h6>
-            <small class="text-muted">Core: Literature, History, Geography, Shona</small>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-4">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success bg-opacity-10 mb-3" style="width:56px;height:56px;">
+                    <i class="bi bi-palette text-success fs-3"></i>
+                </div>
+                <h6 class="mb-1">Arts Stream</h6>
+                <small class="text-muted">Literature, History, Geography, Shona</small>
+            </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card-panel text-center p-4">
-            <h6 class="mb-2">Commerce Stream</h6>
-            <small class="text-muted">Core: Accounts, Commerce, Economics, Business Studies</small>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-4">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning bg-opacity-10 mb-3" style="width:56px;height:56px;">
+                    <i class="bi bi-calculator text-warning fs-3"></i>
+                </div>
+                <h6 class="mb-1">Commerce Stream</h6>
+                <small class="text-muted">Accounts, Commerce, Economics</small>
+            </div>
         </div>
     </div>
 </div>
 
-<form method="POST">
+<form method="POST" id="transitionForm">
     <input type="hidden" name="academic_year" value="{{ CURRENT_YEAR }}">
 
     <div class="card-panel mb-4">
-        <div class="panel-head">
-            <h6 class="panel-title"><i class="bi bi-people me-2"></i>Form 2 Students</h6>
+        <div class="panel-head d-flex justify-content-between align-items-center">
+            <h6 class="panel-title mb-0"><i class="bi bi-people me-2"></i>Form 2 Students</h6>
+            <span class="text-muted small">{{ form2_students|length }} student{{ 's' if form2_students|length != 1 }}</span>
         </div>
-        <p class="text-muted small mb-3">Select the stream for each student moving to Form 3.</p>
+
+        <div class="d-flex gap-2 align-items-center px-3 py-3 border-bottom">
+            <div class="d-flex gap-2 align-items-center">
+                <label class="form-label mb-0 me-2 small fw-semibold">Place selected into:</label>
+                <select class="form-select form-select-sm" id="bulkStream" style="width: auto;">
+                    <option value="">-- Choose Stream --</option>
+                    {% for stream_key, stream_name in streams %}
+                    <option value="{{ stream_key }}">{{ stream_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline" id="applyStreamBtn">
+                <i class="bi bi-arrow-right me-1"></i>Apply to Selected
+            </button>
+            <div class="ms-auto">
+                <input type="checkbox" class="form-check-input" id="selectAll">
+                <label class="form-label mb-0 ms-1 small" for="selectAll">Select All</label>
+            </div>
+        </div>
 
         <div class="table-responsive">
             <table class="table clean-table mb-0">
                 <thead>
                     <tr>
+                        <th style="width:40px"></th>
                         <th>Admission No.</th>
                         <th>Name</th>
                         <th>Current Class</th>
-                        <th style="width: 250px;">Target Stream</th>
+                        <th style="width: 220px;">Target Stream</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in form2_students %}
                     <tr>
+                        <td><input type="checkbox" class="form-check-input student-check" value="{{ loop.index0 }}"></td>
                         <td><span class="id-chip">{{ item.student.admission_number }}</span></td>
-                        <td>{{ item.student.first_name }} {{ item.student.last_name }}</td>
+                        <td><strong>{{ item.student.first_name }} {{ item.student.last_name }}</strong></td>
                         <td>{{ item.class.name }}</td>
                         <td>
-                            <select class="form-select form-select-sm" name="transitions">
+                            <select class="form-select form-select-sm stream-select" name="transitions" data-index="{{ loop.index0 }}">
                                 <option value="">-- Select Stream --</option>
                                 {% for stream_key, stream_name in streams %}
                                 <option value="{{ item.student.id }}:{{ stream_key }}">{{ stream_name }}</option>
@@ -67,7 +108,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="4" class="empty-row">No Form 2 students found.</td></tr>
+                    <tr><td colspan="5" class="empty-row">No Form 2 students found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -75,11 +116,55 @@
     </div>
 
     {% if form2_students %}
-    <div class="d-flex justify-content-end">
+    <div class="d-flex justify-content-between align-items-center">
+        <span class="text-muted small" id="selectedCount">0 students selected</span>
         <button type="submit" class="btn btn-primary btn-lg" data-confirm="Place selected students into Form 3 streams?">
             <i class="bi bi-arrow-right-circle me-2"></i>Place Students in Streams
         </button>
     </div>
     {% endif %}
 </form>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAll = document.getElementById('selectAll');
+    const checks = document.querySelectorAll('.student-check');
+    const countEl = document.getElementById('selectedCount');
+    const selects = document.querySelectorAll('.stream-select');
+
+    function updateCount() {
+        const checked = document.querySelectorAll('.student-check:checked').length;
+        countEl.textContent = checked + ' student' + (checked !== 1 ? 's' : '') + ' selected';
+    }
+
+    selectAll?.addEventListener('change', function() {
+        checks.forEach(function(c) { c.checked = selectAll.checked; });
+        updateCount();
+    });
+
+    checks.forEach(function(c) {
+        c.addEventListener('change', updateCount);
+    });
+
+    document.getElementById('applyStreamBtn')?.addEventListener('click', function() {
+        const stream = document.getElementById('bulkStream').value;
+        if (!stream) { alert('Please choose a stream first.'); return; }
+        const streamName = document.getElementById('bulkStream').options[document.getElementById('bulkStream').selectedIndex].text;
+        document.querySelectorAll('.student-check:checked').forEach(function(c) {
+            const idx = parseInt(c.value);
+            const sel = document.querySelector('.stream-select[data-index="' + idx + '"]');
+            if (sel) {
+                for (var i = 0; i < sel.options.length; i++) {
+                    if (sel.options[i].value.indexOf(':' + stream) !== -1) {
+                        sel.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        });
+        updateCount();
+    });
+});
+</script>
 {% endblock %}

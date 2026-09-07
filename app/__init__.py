@@ -24,12 +24,14 @@ def create_app():
     from app.teacher import teacher_bp
     from app.student import student_bp
     from app.newsletter import newsletter_bp
+    from app.financial import financial_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(teacher_bp, url_prefix='/teacher')
     app.register_blueprint(student_bp, url_prefix='/student')
     app.register_blueprint(newsletter_bp)
+    app.register_blueprint(financial_bp)
 
     with app.app_context():
         db.create_all()
@@ -45,9 +47,9 @@ def create_app():
                 return default
 
         # ── Core school information ──────────────────────────────────────────
-        school_name    = setting('school_name',    'NYATSIME COLLEGE')
-        school_motto   = setting('school_motto',   'Knowledge | Integrity | Excellence')
-        school_address = setting('school_address', 'P.O. Box Nyatsime, Zimbabwe')
+        school_name    = setting('school_name',    'TYNWALD HIGH SCHOOL')
+        school_motto   = setting('school_motto',   'Quality & Excellence')
+        school_address = setting('school_address', '')
         school_phone   = setting('school_phone',   '')
         school_email   = setting('school_email',   '')
         school_short_name = setting('school_short_name', '')
@@ -57,8 +59,8 @@ def create_app():
         report_footer  = setting('report_footer',  '')
 
         # ── Brand colours ────────────────────────────────────────────────────
-        primary_color = setting('primary_color', '#1C3480')
-        accent_color  = setting('accent_color',  '#7A1F2B')
+        primary_color = setting('primary_color', '#6A2A39')
+        accent_color  = setting('accent_color',  '#FFF212')
 
         # Derive a darker shade of primary for hover states (simple offset)
         def _hex_darken(hex_color, factor=0.85):
@@ -86,16 +88,23 @@ def create_app():
         primary_soft  = _hex_to_soft(primary_color, 0.12)
         accent_soft   = _hex_to_soft(accent_color,  0.15)
 
-        # Inline CSS that overrides the generic --brand-* design tokens
+        # Inline CSS that overrides the generic --tw-* and --brand-* design tokens
         # with this school's chosen colours.  Injected into <head> by base.html.
         brand_css = f"""<style>
 :root {{
+  --tw-maroon:          {primary_color};
+  --tw-maroon-dark:     {primary_dark};
+  --tw-maroon-soft:     {primary_soft};
+  --tw-gold-muted:      {accent_color};
+  --tw-gold-soft:       {accent_soft};
+  --tw-sidebar-start:   {primary_color};
+  --tw-sidebar-end:     {primary_dark};
   --brand-primary:      {primary_color};
   --brand-primary-dark: {primary_dark};
   --brand-primary-soft: {primary_soft};
   --brand-accent:       {accent_color};
   --brand-accent-soft:  {accent_soft};
-  --brand-dark:         #0E1B3A;
+  --brand-dark:         #25151B;
 }}
 </style>"""
 
@@ -104,7 +113,7 @@ def create_app():
         if logo_filename:
             school_logo_url = f'/static/uploads/{logo_filename}'
         else:
-            school_logo_url = '/static/img/nyatsime-crest.png'
+            school_logo_url = '/static/img/logo.png'
 
         return dict(
             User=User,

@@ -33,7 +33,7 @@
             <form method="POST" action="{{ url_for('teacher.update_report', report_id=report.id) }}" id="marksForm">
                 <div class="table-responsive">
                     <table class="table clean-table mb-0 marks-entry-table">
-                        <thead><tr><th>Subject</th><th style="width:160px">Mark (0-100)</th><th style="width:90px" class="text-center">Grade</th></tr></thead>
+                        <thead><tr><th>Subject</th><th style="width:120px">Mark (0-100)</th><th style="width:80px" class="text-center">Grade</th><th style="width:250px">Subject Comment</th></tr></thead>
                         <tbody>
                             {% for mark in report.marks|sort(attribute='subject.name') %}
                             <tr>
@@ -47,6 +47,13 @@
                                            {% if report.status in ['approved', 'published'] %}disabled{% endif %}>
                                 </td>
                                 <td class="text-center"><span class="grade-chip live-grade">{{ mark.grade or '-' }}</span></td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm"
+                                           name="comment_{{ mark.subject.id }}"
+                                           placeholder="Optional comment..."
+                                           value="{{ mark.comment or '' }}"
+                                           {% if report.status in ['approved', 'published'] %}disabled{% endif %}>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -54,8 +61,14 @@
                 </div>
 
                 <div class="mt-4">
-                    <label class="form-label">Teacher's Comment</label>
-                    <textarea class="form-control" name="teacher_comment" rows="3"
+                    <label class="form-label">Teacher's Comment
+                        {% if report.status not in ['approved', 'published'] %}
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="autoGenBtn" title="Auto-generate based on average">
+                            <i class="bi bi-magic me-1"></i>Auto-generate
+                        </button>
+                        {% endif %}
+                    </label>
+                    <textarea class="form-control" name="teacher_comment" rows="3" id="teacherComment"
                               {% if report.status in ['approved', 'published'] %}disabled{% endif %}>{{ report.teacher_comment or '' }}</textarea>
                 </div>
 
@@ -87,6 +100,7 @@
                 <input type="hidden" name="teacher_comment" value="">
                 {% for mark in report.marks %}
                 <input type="hidden" name="score_{{ mark.subject_id }}" value="{{ mark.score or 0 }}">
+                <input type="hidden" name="comment_{{ mark.subject_id }}" value="{{ mark.comment or '' }}">
                 {% endfor %}
                 <button type="submit" class="btn btn-primary w-100" data-confirm="Submit this report? It cannot be edited after submission."><i class="bi bi-send me-2"></i>Submit for Approval</button>
             </form>
@@ -105,6 +119,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (pct >= 80) return 'A'; if (pct >= 70) return 'B'; if (pct >= 60) return 'C';
         if (pct >= 50) return 'D'; if (pct >= 40) return 'E'; return 'U';
+    }
+    function autoComment(avg) {
+        if (avg >= 80) return 'Excellent performance. Keep up the outstanding work!';
+        if (avg >= 70) return 'Very good work. There is room for further improvement.';
+        if (avg >= 60) return 'Fairly good. More effort is needed to reach full potential.';
+        if (avg >= 50) return 'Satisfactory. Additional effort and commitment are required.';
+        if (avg >= 40) return 'Pass. Significant improvement is needed across subjects.';
+        return 'Unsatisfactory. Urgent attention and extra support are required.';
     }
     function refreshSummary() {
         let total = 0, count = 0;
@@ -131,14 +153,27 @@ document.addEventListener('DOMContentLoaded', function() {
             if (target) { e.preventDefault(); target.focus(); target.select(); }
         });
     });
+    document.getElementById('autoGenBtn')?.addEventListener('click', function() {
+        let total = 0, count = 0;
+        document.querySelectorAll('#marksForm .mark-input').forEach(function(input) {
+            total += parseFloat(input.value) || 0;
+            count++;
+        });
+        const avg = count ? total / count : 0;
+        document.getElementById('teacherComment').value = autoComment(avg);
+    });
     document.getElementById('submitForm')?.addEventListener('submit', function() {
         this.querySelector('input[name="teacher_comment"]').value =
             document.querySelector('textarea[name="teacher_comment"]').value;
-        // Copy current mark values to hidden fields
         document.querySelectorAll('#marksForm .mark-input').forEach(function(input) {
             const subjectId = input.name.replace('score_', '');
             const hidden = this.querySelector('input[name="score_' + subjectId + '"]');
             if (hidden) hidden.value = input.value || '0';
+        }.bind(this));
+        document.querySelectorAll('#marksForm input[name^="comment_"]').forEach(function(input) {
+            const subjectId = input.name.replace('comment_', '');
+            const hidden = this.querySelector('input[name="comment_' + subjectId + '"]');
+            if (hidden) hidden.value = input.value;
         }.bind(this));
     });
 });

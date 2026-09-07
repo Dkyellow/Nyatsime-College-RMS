@@ -17,12 +17,12 @@
 <!-- Statistic cards -->
 <div class="stat-grid">
     <div class="stat-card">
-        <div class="stat-icon blue"><i class="bi bi-mortarboard"></i></div>
+        <div class="stat-icon blue"><i class="bi bi-people"></i></div>
         <div><div class="stat-value">{{ total_students }}</div><div class="stat-label">Total Students</div></div>
     </div>
     <div class="stat-card">
         <div class="stat-icon navy"><i class="bi bi-person-workspace"></i></div>
-        <div><div class="stat-value">{{ total_teachers }}</div><div class="stat-label">Total Teachers</div></div>
+        <div><div class="stat-value">{{ total_teachers }}</div><div class="stat-label">Teaching Staff</div></div>
     </div>
     <div class="stat-card">
         <div class="stat-icon slate"><i class="bi bi-collection"></i></div>
@@ -34,11 +34,11 @@
     </div>
     <div class="stat-card accent-gold">
         <div class="stat-icon gold"><i class="bi bi-hourglass-split"></i></div>
-        <div><div class="stat-value">{{ pending_reports }}</div><div class="stat-label">Reports Pending Approval</div></div>
+        <div><div class="stat-value">{{ pending_reports }}</div><div class="stat-label">Reports Pending</div></div>
     </div>
     <div class="stat-card">
         <div class="stat-icon green"><i class="bi bi-file-earmark-check"></i></div>
-        <div><div class="stat-value">{{ generated_reports }}</div><div class="stat-label">Reports Generated</div></div>
+        <div><div class="stat-value">{{ generated_reports }}</div><div class="stat-label">Reports Published</div></div>
     </div>
 </div>
 
@@ -59,7 +59,7 @@
     <div class="col-xl-7">
         <div class="card-panel h-100">
             <div class="panel-head d-flex justify-content-between align-items-center">
-                <h6 class="panel-title"><i class="bi bi-journal-check me-2"></i>Recent Examination Results</h6>
+                <h6 class="panel-title"><i class="bi bi-journal-check"></i>Recent Examination Results</h6>
                 <a href="{{ url_for('admin.reports') }}" class="link-more">View all</a>
             </div>
             <div class="table-responsive">
@@ -90,7 +90,7 @@
     <div class="col-xl-5">
         <div class="card-panel h-100">
             <div class="panel-head d-flex justify-content-between align-items-center">
-                <h6 class="panel-title"><i class="bi bi-calendar-event me-2"></i>Upcoming Academic Events</h6>
+                <h6 class="panel-title"><i class="bi bi-calendar-event"></i>Academic Calendar</h6>
                 <a href="{{ url_for('admin.academic_calendar') }}" class="link-more">Manage</a>
             </div>
             {% if current_year %}
@@ -122,7 +122,7 @@
     <!-- Recent activity -->
     <div class="col-xl-7">
         <div class="card-panel h-100">
-            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-activity me-2"></i>Recent Activity</h6></div>
+            <div class="panel-head"><h6 class="panel-title"><i class="bi bi-activity"></i>Recent Activity</h6></div>
             <ul class="activity-list">
                 {% for report in recent_activity %}
                 <li>
@@ -144,7 +144,7 @@
     <div class="col-xl-5">
         <div class="card-panel h-100">
             <div class="panel-head d-flex justify-content-between align-items-center">
-                <h6 class="panel-title"><i class="bi bi-heart-pulse me-2"></i>Students Requiring Attention</h6>
+                <h6 class="panel-title"><i class="bi bi-heart-pulse"></i>Students Requiring Attention</h6>
                 <a href="{{ url_for('admin.students') }}" class="link-more">All students</a>
             </div>
             {% for student, avg in attention %}

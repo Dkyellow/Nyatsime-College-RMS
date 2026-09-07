@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% block title %}School Calendar - {{ SCHOOL_NAME }}{% endblock %}
+{% block top_title %}
+<span class="school-chip"><img src="{{ SCHOOL_LOGO_URL }}" alt=""> School Calendar</span>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h4 class="page-title">School Calendar</h4>
+        <p class="page-sub">View upcoming school events, exams and activities.</p>
+    </div>
+    <div class="head-actions">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline view-btn active" data-view="grid" onclick="showView('grid')"><i class="bi bi-calendar3 me-1"></i>Calendar</button>
+            <button type="button" class="btn btn-outline view-btn" data-view="list" onclick="showView('list')"><i class="bi bi-list-ul me-1"></i>List</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== CALENDAR GRID VIEW ==================== -->
+<div id="grid-view">
+    <div class="card-panel">
+        <div class="panel-head d-flex justify-content-between align-items-center mb-3">
+            <a href="{{ url_for('teacher.calendar', month=prev_month, year=prev_year) }}" class="btn btn-sm btn-outline"><i class="bi bi-chevron-left"></i></a>
+            <h5 class="mb-0 fw-bold">{{ month_name }} {{ year }}</h5>
+            <a href="{{ url_for('teacher.calendar', month=next_month, year=next_year) }}" class="btn btn-sm btn-outline"><i class="bi bi-chevron-right"></i></a>
+        </div>
+
+        <div class="cal-grid">
+            <div class="cal-header">Mon</div>
+            <div class="cal-header">Tue</div>
+            <div class="cal-header">Wed</div>
+            <div class="cal-header">Thu</div>
+            <div class="cal-header">Fri</div>
+            <div class="cal-header">Sat</div>
+            <div class="cal-header">Sun</div>
+
+            {% for week in cal_month %}
+            {% for day in week %}
+            {% set date_str = '%04d-%02d-%02d'|format(year, month, day) if day else '' %}
+            {% set is_today = (day == today.day and month == today.month and year == today.year) %}
+            {% set day_events = events_by_date.get(date_str, []) if date_str else [] %}
+            <div class="cal-cell {% if not day %}cal-other{% endif %} {% if is_today %}cal-today{% endif %}">
+                {% if day %}
+                <span class="cal-day-num {% if is_today %}cal-day-today{% endif %}">{{ day }}</span>
+                {% for evt in day_events[:3] %}
+                <div class="cal-event cal-evt-{{ evt.event_type }}" title="{{ evt.title }}{% if evt.description %}: {{ evt.description }}{% endif %}">
+                    {{ evt.title }}
+                </div>
+                {% endfor %}
+                {% if day_events|length > 3 %}
+                <div class="cal-more">+{{ day_events|length - 3 }} more</div>
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% endfor %}
+        </div>
+
+        <div class="cal-legend mt-3">
+            <span class="cal-legend-item"><span class="cal-dot cal-evt-exam"></span>Exam</span>
+            <span class="cal-legend-item"><span class="cal-dot cal-evt-holiday"></span>Holiday</span>
+            <span class="cal-legend-item"><span class="cal-dot cal-evt-sports"></span>Sports</span>
+            <span class="cal-legend-item"><span class="cal-dot cal-evt-meeting"></span>Meeting</span>
+            <span class="cal-legend-item"><span class="cal-dot cal-evt-activity"></span>Activity</span>
+            <span class="cal-legend-item"><span class="cal-dot cal-evt-general"></span>General</span>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== LIST VIEW ==================== -->
+<div id="list-view" style="display:none;">
+    <div class="card-panel">
+        <div class="panel-head">
+            <span class="text-muted small">{{ events|length }} upcoming events</span>
+        </div>
+
+        {% if events %}
+        <div class="calendar-list">
+            {% for event in events %}
+            <div class="calendar-event-item">
+                <div class="event-date-badge">
+                    <span class="event-day">{{ event.start_date.strftime('%d') }}</span>
+                    <span class="event-month">{{ event.start_date.strftime('%b') }}</span>
+                </div>
+                <div class="event-details">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <strong class="event-title">{{ event.title }}</strong>
+                        {% if event.event_type == 'exam' %}
+                        <span class="badge bg-danger">Exam</span>
+                        {% elif event.event_type == 'holiday' %}
+                        <span class="badge bg-success">Holiday</span>
+                        {% elif event.event_type == 'sports' %}
+                        <span class="badge bg-primary">Sports</span>
+                        {% elif event.event_type == 'meeting' %}
+                        <span class="badge bg-warning text-dark">Meeting</span>
+                        {% elif event.event_type == 'activity' %}
+                        <span class="badge bg-info text-dark">Activity</span>
+                        {% else %}
+                        <span class="badge bg-secondary">General</span>
+                        {% endif %}
+                    </div>
+                    {% if event.end_date and event.end_date != event.start_date %}
+                    <div class="text-muted small mb-1">
+                        <i class="bi bi-calendar-range me-1"></i>{{ event.start_date.strftime('%d %b') }} - {{ event.end_date.strftime('%d %b %Y') }}
+                    </div>
+                    {% else %}
+                    <div class="text-muted small mb-1">
+                        <i class="bi bi-calendar-event me-1"></i>{{ event.start_date.strftime('%d %B %Y') }}
+                    </div>
+                    {% endif %}
+                    {% if event.description %}
+                    <p class="event-desc mb-0">{{ event.description }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-calendar-x fs-1 text-muted"></i>
+            <p class="text-muted mt-2">No upcoming events at this time.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.view-btn.active { background: var(--primary, #6A2A39); color: #fff; border-color: var(--primary, #6A2A39); }
+
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.cal-header {
+    background: var(--primary, #6A2A39);
+    color: #fff;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 8px 4px;
+}
+.cal-cell {
+    min-height: 90px;
+    border-right: 1px solid var(--border, #e5e7eb);
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    padding: 4px;
+    vertical-align: top;
+}
+.cal-cell:nth-child(7n) { border-right: none; }
+.cal-other { background: var(--neutral, #f9fafb); opacity: 0.5; }
+.cal-today { background: rgba(106, 42, 57, 0.06); }
+.cal-day-num {
+    display: inline-block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 2px;
+}
+.cal-day-today {
+    background: var(--primary, #6A2A39);
+    color: #fff;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    text-align: center;
+    line-height: 22px;
+}
+.cal-event {
+    font-size: 0.65rem;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #fff;
+    font-weight: 500;
+}
+.cal-more {
+    font-size: 0.6rem;
+    color: #888;
+    text-align: center;
+    padding: 1px;
+}
+.cal-evt-exam { background: #dc3545; }
+.cal-evt-holiday { background: #198754; }
+.cal-evt-sports { background: #0d6efd; }
+.cal-evt-meeting { background: #ffc107; color: #333; }
+.cal-evt-activity { background: #0dcaf0; color: #333; }
+.cal-evt-general { background: #6c757d; }
+
+.cal-legend {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.cal-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: #666;
+}
+.cal-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+.cal-legend-item .cal-evt-exam { background: #dc3545; }
+.cal-legend-item .cal-evt-holiday { background: #198754; }
+.cal-legend-item .cal-evt-sports { background: #0d6efd; }
+.cal-legend-item .cal-evt-meeting { background: #ffc107; }
+.cal-legend-item .cal-evt-activity { background: #0dcaf0; }
+.cal-legend-item .cal-evt-general { background: #6c757d; }
+
+.calendar-list { padding: 0; }
+.calendar-event-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    transition: background 0.15s;
+}
+.calendar-event-item:last-child { border-bottom: none; }
+.calendar-event-item:hover { background: var(--neutral, #f5f6f8); }
+.event-date-badge {
+    min-width: 52px;
+    text-align: center;
+    background: var(--primary, #6A2A39);
+    color: #fff;
+    border-radius: 8px;
+    padding: 6px 8px;
+    line-height: 1.1;
+}
+.event-day { display: block; font-size: 1.25rem; font-weight: 700; }
+.event-month { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
+.event-title { font-size: 0.95rem; }
+.event-desc { font-size: 0.85rem; color: #555; }
+.empty-state { text-align: center; padding: 3rem 1rem; }
+</style>
+
+<script>
+function showView(view) {
+    document.getElementById('grid-view').style.display = view === 'grid' ? '' : 'none';
+    document.getElementById('list-view').style.display = view === 'list' ? '' : 'none';
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+    });
+}
+</script>
+{% endblock %}

@@ -1,9 +1,10 @@
 import os
 import hashlib
 from io import BytesIO
+from pathlib import Path
 
 from PIL import Image
-from xhtml2pdf import pisa
+from weasyprint import HTML
 from flask import render_template_string, current_app
 
 
@@ -13,7 +14,7 @@ from flask import render_template_string, current_app
 # Change this whenever the PDF layout is changed.
 # This prevents old cached PDFs from being reused.
 
-REPORT_TEMPLATE_VERSION = "v14"
+REPORT_TEMPLATE_VERSION = "v31"
 
 
 # ================================================================
@@ -34,18 +35,12 @@ REPORT_CARD_HTML = """
 
 @page {
     size: A4;
-    margin: 9mm 12mm 9mm 12mm;
+    margin: 10mm 14mm 10mm 14mm;
 
-    /*
-     * watermark_path is a FULL A4 transparent image.
-     * The school logo has already been positioned at the centre
-     * by Python, so xhtml2pdf does not need to calculate its position.
-     */
     background-image: url("{{ watermark_path }}");
     background-repeat: no-repeat;
-    background-position: 0mm 0mm;
-    background-width: 210mm;
-    background-height: 297mm;
+    background-position: center center;
+    background-size: 210mm 297mm;
 }
 
 
@@ -58,7 +53,8 @@ REPORT_CARD_HTML = """
 body {
     font-family: Helvetica, Arial, sans-serif;
     font-size: 9pt;
-    color: #111;
+    color: #1a1a1a;
+    background-color: transparent;
 }
 
 
@@ -69,7 +65,8 @@ body {
 .hdr {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 3mm;
+    margin-bottom: 5mm;
+    background-color: transparent;
 }
 
 .hdr td {
@@ -77,32 +74,46 @@ body {
 }
 
 .hdr-logo {
-    width: 23mm;
+    width: 26mm;
 }
 
 .hdr-logo img {
-    width: 21mm;
-    height: 21mm;
+    width: 24mm;
+    height: 24mm;
 }
 
 .hdr-title {
-    padding-left: 12mm;
     text-align: center;
-}
-
-.hdr-rc {
-    font-size: 24pt;
-    font-weight: bold;
-    color: #111;
-    letter-spacing: 2px;
-    line-height: 1;
+    padding: 0 4mm;
 }
 
 .hdr-school {
-    font-size: 11pt;
+    font-size: 16pt;
     font-weight: bold;
     color: {{ primary_color }};
-    letter-spacing: 1.5px;
+    letter-spacing: 2px;
+    line-height: 1.1;
+    margin-bottom: 1mm;
+}
+
+.hdr-motto {
+    font-size: 7pt;
+    font-weight: bold;
+    color: {{ accent_color }};
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 2mm;
+}
+
+.hdr-report {
+    font-size: 9pt;
+    font-weight: bold;
+    color: #444;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-top: 2pt solid {{ primary_color }};
+    border-bottom: 1pt solid {{ primary_color }};
+    padding: 1.5mm 0;
     margin-top: 1mm;
 }
 
@@ -111,33 +122,63 @@ body {
    STUDENT INFORMATION
    ================================================================ */
 
+.info-box {
+    width: 100%;
+    border: 1pt solid {{ primary_color }};
+    border-radius: 2mm;
+    overflow: hidden;
+    margin-top: 10mm;
+    margin-bottom: 15mm;
+}
+
+.info-box-header {
+    background: {{ primary_color }};
+    color: #fff;
+    font-size: 8pt;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 1.5mm 3mm;
+}
+
 .info {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 2mm;
 }
 
 .info td {
-    vertical-align: bottom;
-    padding: 0 1.5mm 0 0;
+    vertical-align: middle;
+    padding: 1.8mm 2mm;
 }
 
-.lbl {
-    font-size: 9pt;
+.info .lbl {
+    font-size: 7.5pt;
     font-weight: bold;
     white-space: nowrap;
-    padding-right: 1.5mm;
+    color: {{ primary_color }};
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: 22%;
 }
 
-.fld {
-    border-bottom: 1.2pt solid #222;
-    padding-bottom: 0.8mm;
-    font-size: 9.5pt;
+.info .fld {
+    font-size: 9pt;
     font-weight: bold;
+    color: #1a1a1a;
+    border-bottom: 0.5pt solid #ddd;
+    padding-bottom: 1mm;
 }
 
-.spacer {
+.info .spacer {
     width: 4mm;
+}
+
+.info tr:nth-child(odd) td {
+    background: transparent;
+}
+
+.info tr:nth-child(even) td {
+    background: rgba(253, 251, 249, 0.4);
 }
 
 
@@ -148,86 +189,169 @@ body {
 .marks {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 3mm;
+    margin-top: 6mm;
+    margin-bottom: 6mm;
+    border: 0.5pt solid #ddd;
 }
 
 .marks th {
-    background: #111;
+    background: {{ primary_color }};
     color: #fff;
-    font-size: 11pt;
+    font-size: 7.5pt;
     font-weight: bold;
-    padding: 2mm 1.5mm;
-    border: 1pt solid #000;
+    padding: 2.5mm 2mm;
+    border: none;
     text-align: center;
     vertical-align: middle;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
 }
 
 .marks th.l {
     text-align: left;
+    padding-left: 3mm;
 }
 
 .marks td {
-    border: 1pt solid #000;
-    padding: 1.5mm 1.5mm;
+    border: none;
+    padding: 2mm 2mm;
     vertical-align: middle;
     text-align: center;
+    font-size: 9pt;
+    border-bottom: 0.5pt solid #eee;
+}
+
+.marks tr:last-child td {
+    border-bottom: none;
+}
+
+.marks tr:nth-child(odd) td {
+    background: transparent;
+}
+
+.marks tr:nth-child(even) td {
+    background: rgba(248, 246, 243, 0.8);
 }
 
 .marks td.c1 {
     width: 10mm;
-}
-
-.marks td.c5 {
-    width: 27mm;
-}
-
-
-/* ================================================================
-   TABLE FONT SIZES
-   ================================================================ */
-
-.number-cell {
-    font-size: 10pt;
-}
-
-.subject-cell {
-    font-size: 10pt;
-    font-weight: normal;
-    text-align: left;
-}
-
-.mark-cell {
-    font-size: 10pt;
-}
-
-.grade-cell {
-    font-size: 11pt;
     font-weight: bold;
+    color: {{ primary_color }};
+}
+
+.marks td.subject-cell {
+    text-align: left;
+    padding-left: 3mm;
+    font-weight: 600;
+}
+
+.marks td.grade-cell {
+    font-weight: bold;
+    color: {{ primary_color }};
+}
+
+.marks td.remarks-cell {
+    text-align: left;
+    padding-left: 2mm;
+    font-size: 7.5pt;
+    color: #555;
+    font-style: italic;
+    max-width: 35mm;
 }
 
 
 /* ================================================================
-   TEACHER COMMENTS
+   PERFORMANCE SUMMARY
    ================================================================ */
+
+.summary {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6mm;
+    margin-bottom: 6mm;
+    border: 0.5pt solid #999;
+}
+
+.summary td {
+    padding: 1.5mm 3mm;
+    font-size: 9pt;
+    border: 0.5pt solid #999;
+    background: transparent;
+}
+
+.summary .s-label {
+    font-weight: bold;
+    color: #555;
+    width: 35%;
+}
+
+.summary .s-value {
+    font-weight: bold;
+    color: {{ primary_color }};
+}
+
+
+/* ================================================================
+   TEACHER COMMENTS (in footer)
+   ================================================================ */
+
+.cmt-section {
+    margin-bottom: 2mm;
+    width: 100%;
+    text-align: center;
+}
 
 .cmt-hd {
-    font-size: 9pt;
+    font-size: 7pt;
     font-weight: bold;
-    text-align: right;
-    margin-top: 3mm;
-    margin-bottom: 1.5mm;
+    text-align: center;
+    margin: 0 0 1mm 0;
+    color: #555;
+    padding: 0;
 }
 
 .cmt-line {
-    border-bottom: 1pt solid #333;
-    height: 5mm;
-    margin-bottom: 1mm;
+    height: auto;
+    margin-bottom: 0.5mm;
+    width: 100%;
+    text-align: center;
 }
 
 .cmt-text {
-    font-size: 8.5pt;
+    font-size: 8pt;
     color: #333;
-    padding: 1mm 0;
+    font-style: italic;
+    text-align: center;
+    margin: 0 0 0.5mm 0;
+    padding: 0;
+}
+
+
+/* ================================================================
+   SIGNATURES (in footer)
+   ================================================================ */
+
+.sig-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2mm;
+}
+
+.sig-table td {
+    width: 50%;
+    padding: 1mm 4mm;
+    vertical-align: bottom;
+}
+
+.sig-line {
+    border-bottom: 0.5pt solid #333;
+    height: 5mm;
+    margin-bottom: 0.5mm;
+}
+
+.sig-label {
+    font-size: 7pt;
+    color: #555;
 }
 
 
@@ -236,12 +360,38 @@ body {
    ================================================================ */
 
 .ftr {
-    border-top: 0.5pt solid #ccc;
-    padding-top: 1.5mm;
+    position: fixed;
+    left: 14mm;
+    bottom: 10mm;
+    width: 182mm;
+    border-top: 1.5pt solid {{ primary_color }};
+    padding-top: 2mm;
     text-align: center;
+    font-size: 7pt;
+    color: #666;
+    background-color: transparent;
+}
+
+.ftr-school {
+    font-weight: bold;
+    color: {{ primary_color }};
+    font-size: 7.5pt;
+    letter-spacing: 1px;
+    margin-bottom: 0.5mm;
+}
+
+.ftr-divider {
+    width: 30mm;
+    height: 0.5pt;
+    background: {{ primary_color }};
+    margin: 1mm auto;
+    opacity: 0.4;
+}
+
+.ftr-text {
     font-size: 6.5pt;
-    color: #777;
-    margin-top: 3mm;
+    color: #888;
+    font-style: italic;
 }
 
 </style>
@@ -250,121 +400,62 @@ body {
 
 <body>
 
-
 <!-- =============================================================
      HEADER
      ============================================================= -->
 
 <table class="hdr">
 <tr>
-
     <td class="hdr-logo">
         <img src="{{ crest_path }}" />
     </td>
-
-
     <td class="hdr-title">
-
-        <div class="hdr-rc">
-            REPORT CARD
-        </div>
-
-        <div class="hdr-school">
-            {{ school_name }}
-        </div>
-
+        <div class="hdr-school">{{ school_name }}</div>
+        <div class="hdr-motto">{{ school_motto }}</div>
+        <div class="hdr-report">Report Card</div>
     </td>
-
-
-    <!-- Keeps title visually centred -->
-    <td style="width:23mm"></td>
-
+    <td style="width:26mm"></td>
 </tr>
 </table>
 
 
 
 <!-- =============================================================
-     STUDENT INFORMATION - ROW 1
+     STUDENT INFORMATION
      ============================================================= -->
 
+<div class="info-box">
+<div class="info-box-header">Student Details</div>
 <table class="info">
 <tr>
-
-    <td class="lbl">
-        Student Name:
-    </td>
-
-    <td style="width:62mm" class="fld">
-        {{ student.first_name }} {{ student.last_name }}
-    </td>
-
+    <td class="lbl">Student Name:</td>
+    <td class="fld">{{ student.first_name }} {{ student.last_name }}</td>
     <td class="spacer"></td>
-
-    <td class="lbl">
-        Class:
-    </td>
-
-    <td style="width:42mm" class="fld">
-        {{ class_name }}
-    </td>
-
+    <td class="lbl">Class:</td>
+    <td class="fld">{{ class_name }}</td>
 </tr>
-</table>
-
-
-
-<!-- =============================================================
-     STUDENT INFORMATION - ROW 2
-     ============================================================= -->
-
-<table class="info">
 <tr>
-
-    <td class="lbl">
-        School Year:
-    </td>
-
-    <td style="width:24mm" class="fld">
-        {{ report.academic_year }}
-    </td>
-
+    <td class="lbl">School Year:</td>
+    <td class="fld">{{ report.academic_year }}</td>
     <td class="spacer"></td>
-
-    <td class="lbl">
-        Term:
-    </td>
-
-    <td style="width:24mm" class="fld">
-        {{ report.academic_term }}
-    </td>
-
+    <td class="lbl">Term:</td>
+    <td class="fld">{{ report.academic_term }}</td>
+</tr>
+<tr>
+    <td class="lbl">Admission No:</td>
+    <td class="fld">{{ student.admission_number }}</td>
     <td class="spacer"></td>
-
-    <td class="lbl">
-        Position:
-    </td>
-
-    <td style="width:32mm" class="fld">
-
+    <td class="lbl">Position:</td>
+    <td class="fld">
         {% if report.position %}
-
-            {{ report.position }}
-
-            {% if class_size %}
-                / {{ class_size }}
-            {% endif %}
-
+            {{ report.position }}{% if class_size %} / {{ class_size }}{% endif %}
         {% else %}
-
             &mdash;
-
         {% endif %}
-
     </td>
-
 </tr>
 </table>
+</div>
 
 
 
@@ -373,163 +464,100 @@ body {
      ============================================================= -->
 
 <table class="marks">
-
+    <thead>
     <tr>
-
-        <th class="c1">
-            No
-        </th>
-
-        <th class="l">
-            Subject
-        </th>
-
-        <th class="c5">
-            Term Mark
-        </th>
-
-        <th class="c5">
-            Avg Mark
-        </th>
-
-        <th class="c5">
-            Grade
-        </th>
-
+        <th class="c1">No</th>
+        <th class="l">Subject</th>
+        <th>Secured Mark</th>
+        <th>Final Grade</th>
+        <th>Grade Score</th>
+        <th class="l">Remarks</th>
     </tr>
-
-
+    </thead>
+    <tbody>
     {% for m in marks %}
-
     <tr>
-
-        <td class="c1 number-cell"
-            style="font-size:10pt;">
-            {{ loop.index }}
-        </td>
-
-
-        <td class="subject-cell"
-            style="font-size:10pt; text-align:left;">
-            {{ m.subject.name }}
-        </td>
-
-
-        <td class="mark-cell"
-            style="font-size:10pt;">
-            {{ "%.1f"|format(m.score) }}
-        </td>
-
-
-        <td class="mark-cell"
-            style="font-size:10pt;">
-            {{ "%.1f"|format(m.percent) }}%
-        </td>
-
-
-        <td class="grade-cell"
-            style="font-size:11pt; font-weight:bold;">
-            {{ m.grade or '&mdash;' }}
-        </td>
-
+        <td class="c1">{{ loop.index }}</td>
+        <td class="subject-cell">{{ m.subject.name }}</td>
+        <td>{{ "%.0f"|format(m.score) }}</td>
+        <td class="grade-cell">{{ m.grade or '&mdash;' }}</td>
+        <td>{{ "%.0f"|format(m.percent) }}%</td>
+        <td class="remarks-cell">{{ m.comment or '' }}</td>
     </tr>
-
     {% endfor %}
-
-
-
-    <!-- Add empty rows only when there are fewer than 8 subjects -->
-
-    {% for i in range([8 - marks|length, 0]|max) %}
-
-    <tr>
-
-        <td class="c1 number-cell"
-            style="font-size:10pt;">
-            &nbsp;
-        </td>
-
-        <td class="subject-cell"
-            style="font-size:10pt; text-align:left;">
-            &nbsp;
-        </td>
-
-        <td class="mark-cell"
-            style="font-size:10pt;">
-            &nbsp;
-        </td>
-
-        <td class="mark-cell"
-            style="font-size:10pt;">
-            &nbsp;
-        </td>
-
-        <td class="grade-cell"
-            style="font-size:11pt;">
-            &nbsp;
-        </td>
-
-    </tr>
-
-    {% endfor %}
-
+    </tbody>
 </table>
 
-
-
-<!-- =============================================================
-     TEACHER'S COMMENT
-     ============================================================= -->
-
-<div class="cmt-hd">
-    Teacher's Comment
-</div>
-
-
-{% if report.teacher_comment %}
-
-<div class="cmt-line">
-
-    <div class="cmt-text">
-        {{ report.teacher_comment }}
-    </div>
-
-</div>
-
+{% if marks|length < 8 %}
+<table class="marks" style="border-top:none;">
+    <tbody>
+    {% for i in range([8 - marks|length, 0]|max) %}
+    <tr>
+        <td class="c1">&nbsp;</td>
+        <td class="subject-cell">&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
 {% endif %}
 
 
-<div class="cmt-line"></div>
 
+<!-- =============================================================
+     PERFORMANCE SUMMARY
+     ============================================================= -->
+
+<table class="summary">
+<tr>
+    <td class="s-label">Average Mark</td>
+    <td class="s-value">{{ "%.1f"|format(report.average) }}%</td>
+    <td class="s-label">Overall Grade</td>
+    <td class="s-value">{{ report.overall_grade or '&mdash;' }}</td>
+</tr>
+</table>
 
 
 <!-- =============================================================
-     FOOTER
+     FOOTER (comment + signatures + school info)
      ============================================================= -->
 
 <div class="ftr">
 
-    {{ school_name }}
+    <div class="cmt-section">
+        {% if report.teacher_comment %}
+        <p class="cmt-text">{{ report.teacher_comment }}</p>
+        {% endif %}
+        <p class="cmt-hd">Class Teacher's Comment</p>
+    </div>
 
-    {% if school_address %}
-        &bull; {{ school_address }}
-    {% endif %}
+    <table class="sig-table">
+    <tr>
+        <td>
+            <div class="sig-line"></div>
+            <div class="sig-label">Class Teacher &mdash; Signature &amp; Date</div>
+        </td>
+        <td>
+            <div class="sig-line"></div>
+            <div class="sig-label">Head of School &mdash; Signature &amp; Date</div>
+        </td>
+    </tr>
+    </table>
 
-    {% if school_phone %}
-        &bull; Tel: {{ school_phone }}
-    {% endif %}
-
-    {% if school_email %}
-        &bull; {{ school_email }}
-    {% endif %}
-
-    <br/>
-
-    This is an official academic document generated by the
-    {{ school_name }} Academic Records System.
+    <div class="ftr-school">{{ school_name }}</div>
+    <div class="ftr-divider"></div>
+    <div class="ftr-text">
+        {{ school_motto }}
+        {% if school_address %} &bull; {{ school_address }}{% endif %}
+        {% if school_phone %} &bull; Tel: {{ school_phone }}{% endif %}
+        {% if school_email %} &bull; {{ school_email }}{% endif %}
+        <br/>This is an official academic document generated by the {{ school_name }} Academic Records System.
+    </div>
 
 </div>
-
 
 </body>
 </html>
@@ -627,7 +655,7 @@ def _get_logo_path():
         current_app.root_path,
         "static",
         "img",
-        "nyatsime-crest.png"
+        "logo.png"
     )
 
 
@@ -640,8 +668,7 @@ def _get_watermark_path():
     Creates a full A4 transparent PNG.
 
     The school's logo is placed in the exact centre of this
-    A4-sized image. This avoids relying on xhtml2pdf's
-    background-position support, which can be inconsistent.
+    A4-sized image to serve as a page watermark.
     """
 
     logo_path = _get_logo_path()
@@ -738,7 +765,7 @@ def _get_watermark_path():
         # ========================================================
         # Maximum size for the school logo.
 
-        WATERMARK_SIZE = 620
+        WATERMARK_SIZE = 700
 
 
         logo.thumbnail(
@@ -757,9 +784,9 @@ def _get_watermark_path():
         alpha = logo.getchannel("A")
 
 
-        # 8% visibility
+        # 25% visibility
         alpha = alpha.point(
-            lambda p: int(p * 0.08)
+            lambda p: int(p * 0.25)
         )
 
 
@@ -815,6 +842,18 @@ def _get_watermark_path():
 
         # Fall back to the normal logo if watermark generation fails.
         return logo_path
+
+
+# ================================================================
+# CONVERT FILESYSTEM PATH TO FILE URI
+# ================================================================
+
+def _path_to_uri(path):
+    """
+    Converts an absolute filesystem path to a file:/// URI
+    that WeasyPrint can resolve.
+    """
+    return Path(path).as_uri()
 
 
 # ================================================================
@@ -889,6 +928,8 @@ def generate_report_card_pdf(report):
 
             "grade": m.grade,
 
+            "comment": m.comment or '',
+
         })
 
 
@@ -910,12 +951,12 @@ def generate_report_card_pdf(report):
         )
 
 
-    # Main logo shown in report header
-    crest_path = _get_logo_path()
+    # Main logo shown in report header (converted to file URI for WeasyPrint)
+    crest_path = _path_to_uri(_get_logo_path())
 
 
-    # Full A4 transparent watermark
-    watermark_path = _get_watermark_path()
+    # Full A4 transparent watermark (converted to file URI for WeasyPrint)
+    watermark_path = _path_to_uri(_get_watermark_path())
 
 
     # Active student count for class position display
@@ -957,7 +998,7 @@ def generate_report_card_pdf(report):
 
         school_name=setting(
             "school_name",
-            "NYATSIME COLLEGE"
+            "TYNWALD HIGH SCHOOL"
         ),
 
         school_address=setting(
@@ -977,12 +1018,12 @@ def generate_report_card_pdf(report):
 
         primary_color=setting(
             "primary_color",
-            "#1C3480"
+            "#6A2A39"
         ),
 
         accent_color=setting(
             "accent_color",
-            "#7A1F2B"
+            "#FFF212"
         ),
 
     )
@@ -995,20 +1036,10 @@ def generate_report_card_pdf(report):
     output = BytesIO()
 
 
-    pisa_status = pisa.CreatePDF(
-
-        html_content,
-
-        dest=output
-
-    )
-
-
-    if pisa_status.err:
-
-        raise Exception(
-            "Error generating PDF"
-        )
+    HTML(
+        string=html_content,
+        base_url=current_app.root_path
+    ).write_pdf(output)
 
 
     output.seek(0)

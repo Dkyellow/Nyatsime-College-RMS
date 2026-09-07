@@ -1,4 +1,4 @@
-﻿"""Seed the Nyatsime College secondary school database with demonstration data.
+﻿"""Seed the Tynwald High School database with demonstration data.
 
 Run:  python seed.py
 """
@@ -9,6 +9,7 @@ from app import create_app, db
 from app.models import (
     User, Admin, Teacher, Student, Class, Subject, Report, Mark,
     Grade, GradeSubject, AcademicYear, AcademicTerm, TeacherSubjectClass,
+    CalendarEvent,
 )
 from app.academic import calculate_grade, generate_username, slugify_name
 from app.services import periods
@@ -27,6 +28,39 @@ def get_random_comment():
         "Great improvement this term. Very proud of your progress.",
         "Keep up the good work. You're doing well!",
     ]
+    return random.choice(comments)
+
+
+def get_subject_comment(score):
+    """Return a subject teacher comment based on the score."""
+    if score >= 80:
+        comments = [
+            "Excellent work! Keep it up.",
+            "Outstanding performance. Very proud.",
+            "Superb effort and results.",
+            "Well done! A commendable achievement.",
+        ]
+    elif score >= 60:
+        comments = [
+            "Good work. Continue striving.",
+            "Satisfactory performance. Keep improving.",
+            "Good effort. Room for growth.",
+            "Well done! Stay focused.",
+        ]
+    elif score >= 40:
+        comments = [
+            "Fair performance. Needs more effort.",
+            "Average work. Practice more.",
+            "Room for improvement. Keep trying.",
+            "Moderate effort. Aim higher.",
+        ]
+    else:
+        comments = [
+            "Needs significant improvement.",
+            "Below expectations. Seek extra help.",
+            "More effort required.",
+            "Please see me for extra lessons.",
+        ]
     return random.choice(comments)
 
 
@@ -76,14 +110,34 @@ def seed_database():
 
         grades = {g.name: g for g in Grade.query.all()}
         subjects = Subject.query.order_by(Subject.name).all()
+        subjects_dict = {s.code: s for s in subjects}
+
+        # Core subjects available to all forms
+        core_subjects = [
+            subjects_dict['ENG'], subjects_dict['MATH'], subjects_dict['SCI'],
+            subjects_dict['GEO'], subjects_dict['HIST'], subjects_dict['SHONA'],
+            subjects_dict['NDE'], subjects_dict['CS'],
+        ]
+
+        # Advanced subjects only for Form 3 and above
+        advanced_subjects = [
+            subjects_dict['BIO'], subjects_dict['CHEM'], subjects_dict['PHY'],
+            subjects_dict['COM'], subjects_dict['POA'], subjects_dict['HER'],
+            subjects_dict['LIT'], subjects_dict['PE'],
+        ]
+
+        form3_plus = {'Form 3', 'Form 4', 'Lower 6', 'Upper 6'}
         for grade in Grade.query.all():
             if not grade.subjects:
-                grade.subjects = subjects
+                if grade.name in form3_plus:
+                    grade.subjects = core_subjects + advanced_subjects
+                else:
+                    grade.subjects = core_subjects
         db.session.flush()
 
         print("Seeding users...")
         # Admin
-        admin_user = User(username='admin', email='admin@nyatsime.ac.zw', role='admin')
+        admin_user = User(username='admin', email='admin@tynwaldhigh.ac.zw', role='admin')
         admin_user.set_password('admin123')
         db.session.add(admin_user)
         db.session.flush()
@@ -93,10 +147,10 @@ def seed_database():
         # Teachers
         teachers = []
         teacher_data = [
-            ('teacher1', 'teacher123', 'r.chikwanha@nyatsime.ac.zw', 'Rudo', 'Chikwanha', 'NYT-T01', '+263 772 000 011'),
-            ('teacher2', 'teacher123', 'b.ndlovu@nyatsime.ac.zw', 'Blessing', 'Ndlovu', 'NYT-T02', '+263 772 000 012'),
-            ('teacher3', 'teacher123', 'f.mhike@nyatsime.ac.zw', 'Farai', 'Mhike', 'NYT-T03', '+263 772 000 013'),
-            ('teacher4', 'teacher123', 's.mutasa@nyatsime.ac.zw', 'Sarudzai', 'Mutasa', 'NYT-T04', '+263 772 000 014'),
+            ('teacher1', 'teacher123', 'r.chikwanha@tynwaldhigh.ac.zw', 'Rudo', 'Chikwanha', 'NYT-T01', '+263 772 000 011'),
+            ('teacher2', 'teacher123', 'b.ndlovu@tynwaldhigh.ac.zw', 'Blessing', 'Ndlovu', 'NYT-T02', '+263 772 000 012'),
+            ('teacher3', 'teacher123', 'f.mhike@tynwaldhigh.ac.zw', 'Farai', 'Mhike', 'NYT-T03', '+263 772 000 013'),
+            ('teacher4', 'teacher123', 's.mutasa@tynwaldhigh.ac.zw', 'Sarudzai', 'Mutasa', 'NYT-T04', '+263 772 000 014'),
         ]
         for username, password, email, first, last, emp_id, phone in teacher_data:
             user = User(username=username, email=email, role='teacher')
@@ -128,8 +182,8 @@ def seed_database():
         subjects_dict = {s.code: s for s in Subject.query.all()}
         teacher_subject_assignments = [
             (teachers[0], classes[0], [subjects_dict['ENG'], subjects_dict['MATH']]),
-            (teachers[1], classes[1], [subjects_dict['BIO'], subjects_dict['CHEM']]),
-            (teachers[2], classes[2], [subjects_dict['PHY'], subjects_dict['MATH']]),
+            (teachers[1], classes[1], [subjects_dict['SCI'], subjects_dict['GEO']]),
+            (teachers[2], classes[2], [subjects_dict['ENG'], subjects_dict['MATH']]),
             (teachers[3], classes[3], [subjects_dict['GEO'], subjects_dict['HIST']]),
             (teachers[0], classes[4], [subjects_dict['ENG'], subjects_dict['LIT']]),
         ]
@@ -178,7 +232,7 @@ def seed_database():
             else:
                 uname = generate_username(first, last, username_exists)
             used_usernames.add(uname)
-            user = User(username=uname, email=f'{uname}@student.nyatsime.ac.zw', role='student')
+            user = User(username=uname, email=f'{uname}@student.tynwaldhigh.ac.zw', role='student')
             user.set_password('student123')
             db.session.add(user)
             db.session.flush()
@@ -215,8 +269,10 @@ def seed_database():
                 for subject in grade_subjects:
                     score = random.randint(32, 97)
                     pct = (score / (subject.max_score or 100)) * 100
+                    subject_comment = get_subject_comment(score)
                     mark = Mark(report_id=report.id, subject_id=subject.id, score=score,
-                                grade=calculate_grade(pct), max_score=subject.max_score)
+                                grade=calculate_grade(pct), max_score=subject.max_score,
+                                comment=subject_comment)
                     db.session.add(mark)
                     total += score
                 report.total_marks = total
@@ -246,7 +302,31 @@ def seed_database():
                         report.grade_position = i
 
         db.session.commit()
-        print("Nyatsime College database seeded successfully!")
+
+        print("Seeding calendar events...")
+        calendar_events = [
+            ('Mid-Year Examinations', 'exam', '2026-06-15', '2026-06-26', 'Form 1-4 mid-year examination period. All students must be prepared.'),
+            ('Sports Day', 'sports', '2026-05-22', None, 'Annual inter-house sports competition. All students to participate.'),
+            ('Teachers Meeting', 'meeting', '2026-04-18', None, 'Term 2 parents-teachers consultation meeting.'),
+            ('Independence Day Holiday', 'holiday', '2026-04-18', '2026-04-19', 'School closed for Independence Day celebrations.'),
+            ('Career Guidance Week', 'activity', '2026-07-06', '2026-07-10', 'Guest speakers and career workshops for all forms.'),
+            ('Term 3 Opens', 'general', '2026-09-01', None, 'All students return for the third and final term.'),
+            ('Final Examinations', 'exam', '2026-10-26', '2026-11-13', 'O-Level and A-Level final examinations.'),
+            ('Speech Day & Prize Giving', 'activity', '2026-12-04', None, 'End-of-year awards ceremony. Parents invited.'),
+        ]
+        for title, etype, start, end, desc in calendar_events:
+            event = CalendarEvent(
+                title=title,
+                event_type=etype,
+                start_date=datetime.strptime(start, '%Y-%m-%d').date(),
+                end_date=datetime.strptime(end, '%Y-%m-%d').date() if end else None,
+                description=desc,
+                created_by=admin_user.id,
+            )
+            db.session.add(event)
+        db.session.commit()
+
+        print("Tynwald High School database seeded successfully!")
         print(f"Demo login: student1 / student123 (any student)")
 
 

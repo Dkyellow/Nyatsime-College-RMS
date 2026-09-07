@@ -10,6 +10,9 @@
         <p class="page-sub">Teaching staff accounts assigned to classes and streams.</p>
     </div>
     <div class="head-actions">
+        <a href="{{ url_for('admin.teacher_assignments') }}" class="btn btn-outline me-2">
+            <i class="bi bi-person-check me-1"></i>Manage Assignments
+        </a>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTeacherModal"><i class="bi bi-plus-lg me-1"></i>Add Teacher</button>
     </div>
 </div>
@@ -73,7 +76,7 @@
                 <div class="col-md-6"><label class="form-label">Last Name</label><input type="text" class="form-control" name="last_name" required></div>
                 <div class="col-md-6"><label class="form-label">Staff ID</label><input type="text" class="form-control" name="employee_id" required placeholder="e.g., NYT-T05"></div>
                 <div class="col-md-6"><label class="form-label">Phone</label><input type="text" class="form-control" name="phone"></div>
-                <div class="col-md-6"><label class="form-label">Email</label><input type="email" class="form-control" name="email" required placeholder="name@nyatsime.ac.zw"></div>
+                <div class="col-md-6"><label class="form-label">Email</label><input type="email" class="form-control" name="email" required placeholder="name@tynwaldhigh.ac.zw"></div>
                 <div class="col-md-3"><label class="form-label">Username</label><input type="text" class="form-control" name="username" required></div>
                 <div class="col-md-3"><label class="form-label">Password</label><input type="password" class="form-control" name="password" required minlength="6"></div>
             </div></div>

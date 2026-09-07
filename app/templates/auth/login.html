@@ -13,7 +13,7 @@
                 {% if SCHOOL_MOTTO %}
                     {% for part in SCHOOL_MOTTO.split('|') %}{{ part.strip() }}{% if not loop.last %} &bull; {% endif %}{% endfor %}
                 {% else %}
-                    Academic Excellence
+                    Quality &amp; Excellence
                 {% endif %}
             </p>
             <div class="hero-divider"></div>
@@ -33,10 +33,11 @@
         </div>
         <div class="login-card">
             <div class="login-brand">
-                 
+                <img src="{{ SCHOOL_LOGO_URL }}" alt="" class="login-crest">
+                <span>{{ SCHOOL_NAME }}</span>
             </div>
-            <h2>Welcome to {{ SCHOOL_NAME }}</h2>
-            <p class="login-sub">Academic Records &amp; Report Management System</p>
+            <h2>Welcome Back</h2>
+            <p class="login-sub">Sign in to your account</p>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}

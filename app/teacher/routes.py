@@ -6,12 +6,13 @@ from datetime import datetime
 from app.teacher import teacher_bp
 from app.models import (
     db, User, Teacher, Student, Class, Subject, Report, Mark,
-    Grade, GradeSubject, AcademicYear, AcademicTerm, TeacherSubjectClass
+    Grade, GradeSubject, AcademicYear, AcademicTerm, TeacherSubjectClass,
+    CalendarEvent
 )
 from functools import wraps
 from app.services.pdf_service import invalidate_report_cache
 from app.services import periods
-from app.academic import calculate_grade, grade_scale_public
+from app.academic import calculate_grade, grade_scale_public, generate_auto_comment
 
 
 def teacher_required(f):
@@ -262,6 +263,9 @@ def save_subject_marks(class_id):
         report.average = sum(scores) / len(scores) if scores else 0
         report.overall_grade = calculate_grade(report.average)
 
+        if not report.teacher_comment:
+            report.teacher_comment = generate_auto_comment(report.average, report.overall_grade)
+
     calculate_positions(class_id, academic_term, academic_year)
     if grade:
         calculate_grade_positions(grade.id, academic_term, academic_year)
@@ -352,6 +356,8 @@ def update_report(report_id):
         score = max(0, min(score, max_score))
         mark.score = score
         mark.grade = calculate_grade((score / max_score) * 100 if max_score else 0)
+        comment_key = f'comment_{mark.subject_id}'
+        mark.comment = request.form.get(comment_key, '')
 
     scores = [m.score for m in report.marks]
     total = sum(scores)
@@ -359,6 +365,9 @@ def update_report(report_id):
     report.average = total / len(scores) if scores else 0
     report.overall_grade = calculate_grade(report.average)
     report.teacher_comment = request.form.get('teacher_comment', '')
+
+    if not report.teacher_comment:
+        report.teacher_comment = generate_auto_comment(report.average, report.overall_grade)
 
     db.session.commit()
     invalidate_report_cache(report.id)
@@ -408,6 +417,8 @@ def submit_report(report_id):
         score = max(0, min(score, max_score))
         mark.score = score
         mark.grade = calculate_grade((score / max_score) * 100 if max_score else 0)
+        comment_key = f'comment_{mark.subject_id}'
+        mark.comment = request.form.get(comment_key, '')
 
     scores = [m.score for m in report.marks]
     total = sum(scores)
@@ -415,6 +426,9 @@ def submit_report(report_id):
     report.average = total / len(scores) if scores else 0
     report.overall_grade = calculate_grade(report.average)
     report.teacher_comment = request.form.get('teacher_comment', '') or report.teacher_comment
+
+    if not report.teacher_comment:
+        report.teacher_comment = generate_auto_comment(report.average, report.overall_grade)
 
     report.status = 'submitted'
     report.submitted_at = datetime.utcnow()
@@ -617,3 +631,50 @@ def export_marks(class_id):
         mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename=marks_{class_obj.name}_{academic_term}_{academic_year}.csv'}
     )
+
+
+@teacher_bp.route('/calendar')
+@teacher_required
+def calendar():
+    import calendar as cal
+    from datetime import date, timedelta
+
+    today = date.today()
+    month = request.args.get('month', today.month, type=int)
+    year = request.args.get('year', today.year, type=int)
+
+    month = max(1, min(12, month))
+    year = max(2020, min(2099, year))
+
+    cal_month = cal.monthcalendar(year, month)
+    month_name = cal.month_name[month]
+
+    prev_month = month - 1 if month > 1 else 12
+    prev_year = year if month > 1 else year - 1
+    next_month = month + 1 if month < 12 else 1
+    next_year = year if month < 12 else year + 1
+
+    events = CalendarEvent.query.filter_by(is_active=True).order_by(CalendarEvent.start_date).all()
+
+    events_by_date = {}
+    for e in events:
+        d = e.start_date.isoformat()
+        events_by_date.setdefault(d, []).append(e)
+        if e.end_date and e.end_date != e.start_date:
+            current = e.start_date + timedelta(days=1)
+            while current <= e.end_date:
+                events_by_date.setdefault(current.isoformat(), []).append(e)
+                current += timedelta(days=1)
+
+    return render_template('teacher/calendar.html',
+                           events=events,
+                           cal_month=cal_month,
+                           month=month,
+                           year=year,
+                           month_name=month_name,
+                           today=today,
+                           events_by_date=events_by_date,
+                           prev_month=prev_month,
+                           prev_year=prev_year,
+                           next_month=next_month,
+                           next_year=next_year)

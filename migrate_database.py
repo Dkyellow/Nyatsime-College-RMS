@@ -9,7 +9,7 @@ Changes applied:
   - Drops grading_scales table if present
   - Ensures fixed secondary school forms exist
   - Seeds default subjects, grade-subject mappings, academic year/terms
-- Seeds all SchoolSetting defaults (Nyatsime College) if not yet configured
+- Seeds all SchoolSetting defaults (Tynwald High School) if not yet configured
 
 Run:  python migrate_database.py
 """
@@ -210,6 +210,31 @@ def migrate_schema(conn):
         cur.execute('ALTER TABLE students DROP COLUMN parent_id')
         print('  dropped students.parent_id column')
 
+    # --- Add comment column to marks table ---
+    if table_exists(cur, 'marks') and not column_exists(cur, 'marks', 'comment'):
+        cur.execute('ALTER TABLE marks ADD COLUMN comment TEXT')
+        print('  added marks.comment column')
+
+    # --- Create payments table ---
+    if not table_exists(cur, 'payments'):
+        cur.execute('''CREATE TABLE payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            academic_year VARCHAR(10) NOT NULL,
+            academic_term VARCHAR(20) NOT NULL,
+            amount_paid FLOAT DEFAULT 0,
+            amount_due FLOAT DEFAULT 0,
+            is_paid BOOLEAN DEFAULT 0,
+            payment_date DATE,
+            receipt_number VARCHAR(50),
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            UNIQUE(student_id, academic_year, academic_term)
+        )''')
+        print('  created table payments')
+
     conn.commit()
 
 
@@ -232,11 +257,33 @@ def seed_structure(app):
 
         # Assign subjects to forms
         if GradeSubject.query.count() == 0:
+            # Core subjects available to all forms
+            core_codes = {'ENG', 'MATH', 'SCI', 'GEO', 'HIST', 'SHONA', 'NDE', 'CS'}
+            # Advanced subjects only for Form 3 and above
+            advanced_codes = {'BIO', 'CHEM', 'PHY', 'COM', 'POA', 'HER', 'LIT', 'PE'}
+            form3_plus = {'Form 3', 'Form 4', 'Lower 6', 'Upper 6'}
+
             all_subjects = Subject.query.all()
             for grade in Grade.query.all():
                 for subj in all_subjects:
-                    db.session.add(GradeSubject(grade_id=grade.id, subject_id=subj.id))
-            print('Subjects assigned to all forms.')
+                    if grade.name in form3_plus:
+                        db.session.add(GradeSubject(grade_id=grade.id, subject_id=subj.id))
+                    elif subj.code in core_codes:
+                        db.session.add(GradeSubject(grade_id=grade.id, subject_id=subj.id))
+            print('Subjects assigned to forms (core for Form 1-2, all for Form 3+).')
+        else:
+            # Fix existing assignments: remove advanced subjects from Form 1-2
+            core_codes = {'ENG', 'MATH', 'SCI', 'GEO', 'HIST', 'SHONA', 'NDE', 'CS'}
+            form3_plus = {'Form 3', 'Form 4', 'Lower 6', 'Upper 6'}
+            removed = 0
+            for gs in GradeSubject.query.all():
+                grade = Grade.query.get(gs.grade_id)
+                subject = Subject.query.get(gs.subject_id)
+                if grade and subject and grade.name not in form3_plus and subject.code not in core_codes:
+                    db.session.delete(gs)
+                    removed += 1
+            if removed:
+                print(f'Removed {removed} advanced subject(s) from Form 1-2.')
 
         # Academic year + terms with dates
         if AcademicYear.query.count() == 0:
@@ -256,7 +303,7 @@ def seed_structure(app):
         # Default report template
         if ReportTemplate.query.count() == 0:
             db.session.add(ReportTemplate(
-                name='Nyatsime College Secondary Report Card',
+                name='Tynwald High School Report Card',
                 template_type='secondary',
                 description='Official academic report card for all forms',
                 is_default=True))
@@ -264,9 +311,9 @@ def seed_structure(app):
 
         # Brand defaults
         defaults = {
-            'school_name': 'NYATSIME COLLEGE',
-            'school_motto': 'Knowledge | Integrity | Excellence',
-            'school_address': 'P.O. Box Nyatsime, Zimbabwe',
+            'school_name': 'TYNWALD HIGH SCHOOL',
+            'school_motto': 'Quality & Excellence',
+            'school_address': '',
             'school_phone': '',
             'school_email': '',
         }
@@ -284,7 +331,7 @@ def seed_structure(app):
             for s in students_without_users:
                 uname = generate_username(s.first_name, s.last_name, username_exists)
                 used_usernames.add(uname)
-                user = User(username=uname, email=f'{uname}@student.nyatsime.ac.zw', role='student')
+                user = User(username=uname, email=f'{uname}@student.tynwaldhigh.ac.zw', role='student')
                 user.set_password('student123')
                 db.session.add(user)
                 db.session.flush()
@@ -295,19 +342,19 @@ def seed_structure(app):
 
 
 def seed_school_settings(app):
-    """Populate SchoolSetting with Nyatsime College defaults for any keys not yet set."""
+    """Populate SchoolSetting with Tynwald High School defaults for any keys not yet set."""
     defaults = {
-        'school_name':       'NYATSIME COLLEGE',
-        'school_short_name': 'Secondary School',
-        'school_motto':      'Knowledge | Integrity | Excellence',
-        'school_address':    'P.O. Box Nyatsime, Zimbabwe',
-        'school_city':       'Harare',
+        'school_name':       'TYNWALD HIGH SCHOOL',
+        'school_short_name': 'Quality & Excellence',
+        'school_motto':      'Quality & Excellence',
+        'school_address':    '',
+        'school_city':       '',
         'school_country':    'Zimbabwe',
         'school_phone':      '',
         'school_email':      '',
         'school_website':    '',
-        'primary_color':     '#1C3480',
-        'accent_color':      '#7A1F2B',
+        'primary_color':     '#6A2A39',
+        'accent_color':      '#FFF212',
         'report_footer':     '',
         'logo_filename':     '',
     }

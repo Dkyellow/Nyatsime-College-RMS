@@ -28,19 +28,19 @@ def school_logo_url():
     logo = SchoolSetting.get('logo_filename', '')
     if logo:
         return url_for('static', filename=f'uploads/{logo}')
-    return url_for('static', filename='img/nyatsime-crest.png')
+    return url_for('static', filename='img/logo.png')
 
 
 def get_school_brand():
     return {
-        'name': SchoolSetting.get('school_name', 'NYATSIME COLLEGE'),
-        'motto': SchoolSetting.get('school_motto', 'Knowledge | Integrity | Excellence'),
+        'name': SchoolSetting.get('school_name', 'TYNWALD HIGH SCHOOL'),
+        'motto': SchoolSetting.get('school_motto', 'Quality & Excellence'),
         'logo': school_logo_url(),
         'address': SchoolSetting.get('school_address', ''),
         'phone': SchoolSetting.get('school_phone', ''),
         'email': SchoolSetting.get('school_email', ''),
-        'primary_color': SchoolSetting.get('primary_color', '#1C3480'),
-        'accent_color': SchoolSetting.get('accent_color', '#7A1F2B'),
+        'primary_color': SchoolSetting.get('primary_color', '#6A2A39'),
+        'accent_color': SchoolSetting.get('accent_color', '#FFF212'),
     }
 
 

@@ -13,3 +13,4 @@ with app.app_context():
     if not User.query.first():
         from seed import seed_database
         seed_database()
+# new comment
